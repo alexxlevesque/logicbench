@@ -1,0 +1,143 @@
+{
+  "components": [
+    {
+      "delay": 0,
+      "id": 1,
+      "label": "A",
+      "properties": {
+        "label": "A",
+        "state": "0"
+      },
+      "type": "SWITCH",
+      "x": 40.0,
+      "y": 80.0
+    },
+    {
+      "delay": 0,
+      "id": 2,
+      "label": "B",
+      "properties": {
+        "label": "B",
+        "state": "0"
+      },
+      "type": "SWITCH",
+      "x": 40.0,
+      "y": 180.0
+    },
+    {
+      "delay": 1,
+      "id": 3,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "2",
+        "label": ""
+      },
+      "type": "XOR",
+      "x": 200.0,
+      "y": 80.0
+    },
+    {
+      "delay": 1,
+      "id": 4,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "2",
+        "label": ""
+      },
+      "type": "AND",
+      "x": 200.0,
+      "y": 190.0
+    },
+    {
+      "delay": 0,
+      "id": 5,
+      "label": "S",
+      "properties": {},
+      "type": "LED",
+      "x": 360.0,
+      "y": 80.0
+    },
+    {
+      "delay": 0,
+      "id": 6,
+      "label": "C",
+      "properties": {},
+      "type": "LED",
+      "x": 360.0,
+      "y": 190.0
+    }
+  ],
+  "format": "logicbench-circuit",
+  "name": "half adder",
+  "version": 2,
+  "wires": [
+    {
+      "from": {
+        "component": 1,
+        "pin": 0
+      },
+      "id": 1,
+      "to": {
+        "component": 3,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 2,
+        "pin": 0
+      },
+      "id": 2,
+      "to": {
+        "component": 3,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 1,
+        "pin": 0
+      },
+      "id": 3,
+      "to": {
+        "component": 4,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 2,
+        "pin": 0
+      },
+      "id": 4,
+      "to": {
+        "component": 4,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 3,
+        "pin": 0
+      },
+      "id": 5,
+      "to": {
+        "component": 5,
+        "pin": 0
+      }
+    },
+    {
+      "from": {
+        "component": 4,
+        "pin": 0
+      },
+      "id": 6,
+      "to": {
+        "component": 6,
+        "pin": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+# Bitbucket Pipelines — the course requires Bitbucket, so CI lives here.
+#
+# The engine build needs no Qt and no display, which is what makes it cheap
+# enough to run on every push. The GUI job installs Qt and runs the smoke test
+# headless under the offscreen platform plugin.
+
+image: ubuntu:24.04
+
+definitions:
+  steps:
+    - step: &engine
+        name: Engine and tests (no Qt)
+        caches:
+          - apt
+        script:
+          - apt-get update -qq
+          - apt-get install -y --no-install-recommends build-essential cmake git ca-certificates
+          - cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLOGICBENCH_BUILD_APP=OFF
+          - cmake --build build -j"$(nproc)"
+          - ctest --test-dir build --output-on-failure
+
+    - step: &gui
+        name: Application and GUI smoke test
+        caches:
+          - apt
+        script:
+          - apt-get update -qq
+          - apt-get install -y --no-install-recommends
+              build-essential cmake git ca-certificates
+              qt6-base-dev libgl1-mesa-dev
+          - cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLOGICBENCH_BUILD_GUI_TESTS=ON
+          - cmake --build build -j"$(nproc)"
+          - ./build/tests/logicbench_gui_tests -platform offscreen
+          # The interface has to keep drawing, so render one and fail if it cannot.
+          - ./build/app/logicbench -platform offscreen examples/adder4.lbc --screenshot /tmp/canvas.png
+
+pipelines:
+  default:
+    - parallel:
+        - step: *engine
+        - step: *gui
+  pull-requests:
+    '**':
+      - parallel:
+          - step: *engine
+          - step: *gui

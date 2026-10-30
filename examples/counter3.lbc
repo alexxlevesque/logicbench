@@ -1,0 +1,187 @@
+{
+  "components": [
+    {
+      "delay": 0,
+      "id": 1,
+      "label": "CLK",
+      "properties": {
+        "label": "CLK",
+        "period": "8",
+        "running": "1"
+      },
+      "type": "CLOCK",
+      "x": 40.0,
+      "y": 160.0
+    },
+    {
+      "delay": 1,
+      "id": 2,
+      "label": "Q0",
+      "properties": {
+        "delay": "1",
+        "initial": "0",
+        "label": "Q0"
+      },
+      "type": "DFF",
+      "x": 200.0,
+      "y": 120.0
+    },
+    {
+      "delay": 0,
+      "id": 3,
+      "label": "bit 0",
+      "properties": {},
+      "type": "LED",
+      "x": 310.0,
+      "y": 60.0
+    },
+    {
+      "delay": 1,
+      "id": 4,
+      "label": "Q1",
+      "properties": {
+        "delay": "1",
+        "initial": "0",
+        "label": "Q1"
+      },
+      "type": "DFF",
+      "x": 400.0,
+      "y": 120.0
+    },
+    {
+      "delay": 0,
+      "id": 5,
+      "label": "bit 1",
+      "properties": {},
+      "type": "LED",
+      "x": 510.0,
+      "y": 60.0
+    },
+    {
+      "delay": 1,
+      "id": 6,
+      "label": "Q2",
+      "properties": {
+        "delay": "1",
+        "initial": "0",
+        "label": "Q2"
+      },
+      "type": "DFF",
+      "x": 600.0,
+      "y": 120.0
+    },
+    {
+      "delay": 0,
+      "id": 7,
+      "label": "bit 2",
+      "properties": {},
+      "type": "LED",
+      "x": 710.0,
+      "y": 60.0
+    }
+  ],
+  "format": "logicbench-circuit",
+  "name": "3-bit ripple counter",
+  "version": 2,
+  "wires": [
+    {
+      "from": {
+        "component": 2,
+        "pin": 1
+      },
+      "id": 1,
+      "to": {
+        "component": 2,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 1,
+        "pin": 0
+      },
+      "id": 2,
+      "to": {
+        "component": 2,
+        "pin": 3
+      }
+    },
+    {
+      "from": {
+        "component": 2,
+        "pin": 0
+      },
+      "id": 3,
+      "to": {
+        "component": 3,
+        "pin": 0
+      }
+    },
+    {
+      "from": {
+        "component": 4,
+        "pin": 1
+      },
+      "id": 4,
+      "to": {
+        "component": 4,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 2,
+        "pin": 1
+      },
+      "id": 5,
+      "to": {
+        "component": 4,
+        "pin": 3
+      }
+    },
+    {
+      "from": {
+        "component": 4,
+        "pin": 0
+      },
+      "id": 6,
+      "to": {
+        "component": 5,
+        "pin": 0
+      }
+    },
+    {
+      "from": {
+        "component": 6,
+        "pin": 1
+      },
+      "id": 7,
+      "to": {
+        "component": 6,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 4,
+        "pin": 1
+      },
+      "id": 8,
+      "to": {
+        "component": 6,
+        "pin": 3
+      }
+    },
+    {
+      "from": {
+        "component": 6,
+        "pin": 0
+      },
+      "id": 9,
+      "to": {
+        "component": 7,
+        "pin": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "components": [
+    {
+      "delay": 0,
+      "id": 1,
+      "label": "R",
+      "properties": {
+        "label": "R",
+        "state": "0"
+      },
+      "type": "SWITCH",
+      "x": 40.0,
+      "y": 80.0
+    },
+    {
+      "delay": 0,
+      "id": 2,
+      "label": "S",
+      "properties": {
+        "label": "S",
+        "state": "0"
+      },
+      "type": "SWITCH",
+      "x": 40.0,
+      "y": 260.0
+    },
+    {
+      "delay": 1,
+      "id": 3,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "2",
+        "label": ""
+      },
+      "type": "NOR",
+      "x": 220.0,
+      "y": 90.0
+    },
+    {
+      "delay": 1,
+      "id": 4,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "2",
+        "label": ""
+      },
+      "type": "NOR",
+      "x": 220.0,
+      "y": 250.0
+    },
+    {
+      "delay": 0,
+      "id": 5,
+      "label": "Q",
+      "properties": {},
+      "type": "LED",
+      "x": 400.0,
+      "y": 90.0
+    },
+    {
+      "delay": 0,
+      "id": 6,
+      "label": "Qbar",
+      "properties": {},
+      "type": "LED",
+      "x": 400.0,
+      "y": 250.0
+    }
+  ],
+  "format": "logicbench-circuit",
+  "name": "SR latch",
+  "version": 2,
+  "wires": [
+    {
+      "from": {
+        "component": 1,
+        "pin": 0
+      },
+      "id": 1,
+      "to": {
+        "component": 3,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 4,
+        "pin": 0
+      },
+      "id": 2,
+      "to": {
+        "component": 3,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 2,
+        "pin": 0
+      },
+      "id": 3,
+      "to": {
+        "component": 4,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 3,
+        "pin": 0
+      },
+      "id": 4,
+      "to": {
+        "component": 4,
+        "pin": 2
+      }
+    },
+    {
+      "from": {
+        "component": 3,
+        "pin": 0
+      },
+      "id": 5,
+      "to": {
+        "component": 5,
+        "pin": 0
+      }
+    },
+    {
+      "from": {
+        "component": 4,
+        "pin": 0
+      },
+      "id": 6,
+      "to": {
+        "component": 6,
+        "pin": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "components": [
+    {
+      "delay": 1,
+      "id": 1,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "1",
+        "label": ""
+      },
+      "type": "NOT",
+      "x": 120.0,
+      "y": 120.0
+    },
+    {
+      "delay": 1,
+      "id": 2,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "1",
+        "label": ""
+      },
+      "type": "NOT",
+      "x": 280.0,
+      "y": 120.0
+    },
+    {
+      "delay": 1,
+      "id": 3,
+      "label": "",
+      "properties": {
+        "delay": "1",
+        "inputs": "1",
+        "label": ""
+      },
+      "type": "NOT",
+      "x": 440.0,
+      "y": 120.0
+    },
+    {
+      "delay": 0,
+      "id": 4,
+      "label": "out",
+      "properties": {},
+      "type": "LED",
+      "x": 600.0,
+      "y": 120.0
+    }
+  ],
+  "format": "logicbench-circuit",
+  "name": "ring oscillator (cannot settle)",
+  "version": 2,
+  "wires": [
+    {
+      "from": {
+        "component": 1,
+        "pin": 0
+      },
+      "id": 1,
+      "to": {
+        "component": 2,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 2,
+        "pin": 0
+      },
+      "id": 2,
+      "to": {
+        "component": 3,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 3,
+        "pin": 0
+      },
+      "id": 3,
+      "to": {
+        "component": 1,
+        "pin": 1
+      }
+    },
+    {
+      "from": {
+        "component": 3,
+        "pin": 0
+      },
+      "id": 4,
+      "to": {
+        "component": 4,
+        "pin": 0
+      }
+    }
+  ]
+}
