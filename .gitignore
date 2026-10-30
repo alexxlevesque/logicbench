@@ -1,0 +1,23 @@
+# Build output
+build/
+build-*/
+cmake-build-*/
+*.o
+*.a
+
+# Qt
+*.moc
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+*.app/
+
+# Editors and platforms
+.vscode/
+.idea/
+.DS_Store
+Icon?
+
+# Fetched dependencies
+_deps/
+third_party/nlohmann/json.hpp
