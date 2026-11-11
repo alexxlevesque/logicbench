@@ -1,6 +1,6 @@
-<!-- Title: <JIRA-KEY>: what this change does, e.g. "LB-42: Add Mux2 and Mux4 to the palette" -->
+<!-- Title: #<issue>: what this change does, e.g. "#3: Add JK and T flip-flops" -->
 
-**Jira issue:** <!-- KEY-n; the issue must exist, be in the current sprint and be assigned to you -->
+Closes #<!-- issue number; the issue must be in the current sprint's milestone -->
 
 **Requirement:** <!-- FR-n / NFR-n from the RAD -->
 
@@ -8,6 +8,6 @@
 
 **How it was tested:**
 
-- [ ] Every commit message starts with the Jira key
+- [ ] Every commit message starts with the issue number (`#n`)
 - [ ] `ctest --test-dir build` passes
-- [ ] Progress logged on the Jira issue
+- [ ] The class diagram in the SDD still matches (new, renamed or removed classes)
