@@ -17,6 +17,12 @@ set(LOGICBENCH_APP_SOURCES
     src/WaveformDock.cpp
     src/TruthTableDialog.cpp
     src/SubcircuitDialog.cpp
+    src/ExpressionDialog.cpp
+    src/SimplifyDialog.cpp
+    src/SpecCheckDialog.cpp
+    src/BlockLibraryDialog.cpp
+    src/ExportImageDialog.cpp
+    src/ExamplesDialog.cpp
 )
 list(TRANSFORM LOGICBENCH_APP_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 set(LOGICBENCH_APP_SOURCES ${LOGICBENCH_APP_SOURCES} PARENT_SCOPE)
@@ -28,6 +34,10 @@ qt_add_executable(logicbench
 )
 
 target_include_directories(logicbench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# The Examples window reads the bundled circuits from the source tree until
+# FR-3 packages them as resources.
+target_compile_definitions(logicbench PRIVATE
+    LOGICBENCH_EXAMPLES_DIR="${PROJECT_SOURCE_DIR}/examples")
 target_link_libraries(logicbench PRIVATE logicbench_engine Qt6::Widgets)
 
 set_target_properties(logicbench PROPERTIES

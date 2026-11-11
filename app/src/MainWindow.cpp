@@ -1,9 +1,15 @@
 #include "MainWindow.h"
 
 #include "CircuitDocument.h"
+#include "BlockLibraryDialog.h"
 #include "CircuitScene.h"
+#include "ExamplesDialog.h"
+#include "ExportImageDialog.h"
+#include "ExpressionDialog.h"
 #include "PaletteDock.h"
 #include "PropertiesDock.h"
+#include "SimplifyDialog.h"
+#include "SpecCheckDialog.h"
 #include "SubcircuitDialog.h"
 #include "TruthTableDialog.h"
 #include "WaveformDock.h"
@@ -172,6 +178,28 @@ void MainWindow::createActions()
 
     m_aboutAction = new QAction(tr("&About LogicBench"), this);
     connect(m_aboutAction, &QAction::triggered, this, &MainWindow::showAbout);
+
+    m_exportImageAction = new QAction(tr("&Export image…"), this);
+    connect(m_exportImageAction, &QAction::triggered, this, &MainWindow::showExportImage);
+
+    m_simplifyAction = new QAction(tr("S&implify…"), this);
+    connect(m_simplifyAction, &QAction::triggered, this, &MainWindow::showSimplify);
+
+    m_specCheckAction = new QAction(tr("&Check against spec…"), this);
+    connect(m_specCheckAction, &QAction::triggered, this, &MainWindow::showSpecCheck);
+
+    m_buildExpressionAction = new QAction(tr("&Build from expression…"), this);
+    connect(m_buildExpressionAction, &QAction::triggered, this,
+            &MainWindow::showBuildFromExpression);
+
+    m_blockLibraryAction = new QAction(tr("Block &library…"), this);
+    connect(m_blockLibraryAction, &QAction::triggered, this, &MainWindow::showBlockLibrary);
+
+    m_examplesAction = new QAction(tr("&Examples…"), this);
+    connect(m_examplesAction, &QAction::triggered, this, &MainWindow::showExamples);
+
+    m_quickStartAction = new QAction(tr("&Quick start…"), this);
+    connect(m_quickStartAction, &QAction::triggered, this, &MainWindow::showQuickStart);
 }
 
 void MainWindow::createMenus()
@@ -182,6 +210,8 @@ void MainWindow::createMenus()
     file->addSeparator();
     file->addAction(m_saveAction);
     file->addAction(m_saveAsAction);
+    file->addSeparator();
+    file->addAction(m_exportImageAction);
     file->addSeparator();
     file->addAction(m_quitAction);
 
@@ -205,13 +235,20 @@ void MainWindow::createMenus()
     tools->addAction(m_resetAction);
     tools->addSeparator();
     tools->addAction(m_truthTableAction);
+    tools->addAction(m_simplifyAction);
+    tools->addAction(m_specCheckAction);
+    tools->addAction(m_buildExpressionAction);
     tools->addSeparator();
     tools->addAction(m_packageAction);
     tools->addAction(m_placeBlockAction);
+    tools->addAction(m_blockLibraryAction);
     tools->addSeparator();
     tools->addAction(m_preferencesAction);
 
     QMenu* help = menuBar()->addMenu(tr("&Help"));
+    help->addAction(m_examplesAction);
+    help->addAction(m_quickStartAction);
+    help->addSeparator();
     help->addAction(m_aboutAction);
 }
 
@@ -491,6 +528,56 @@ void MainWindow::showPreferences()
     m_tickIntervalMs = interval->value();
     m_runTimer->setInterval(m_tickIntervalMs);
     m_scene->setSnapToGrid(snap->isChecked());
+}
+
+// ----------------------------------------------- planned windows (shells) --
+
+void MainWindow::showExportImage()
+{
+    ExportImageDialog dialog(!m_scene->selectedItems().isEmpty(), this);
+    dialog.exec();
+}
+
+void MainWindow::showSimplify()
+{
+    SimplifyDialog dialog(m_document, this);
+    connect(&dialog, &SimplifyDialog::buildRequested, this, [this](const QString& equations) {
+        ExpressionDialog builder(m_document, this);
+        builder.setEquations(equations);
+        builder.exec();
+    });
+    dialog.exec();
+}
+
+void MainWindow::showSpecCheck()
+{
+    SpecCheckDialog dialog(m_document, this);
+    dialog.exec();
+}
+
+void MainWindow::showBuildFromExpression()
+{
+    ExpressionDialog dialog(m_document, this);
+    dialog.exec();
+}
+
+void MainWindow::showBlockLibrary()
+{
+    BlockLibraryDialog dialog(this);
+    dialog.exec();
+}
+
+void MainWindow::showExamples()
+{
+    ExamplesDialog dialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), this);
+    dialog.exec();
+}
+
+void MainWindow::showQuickStart()
+{
+    ExamplesDialog dialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), this);
+    dialog.showTab(ExamplesDialog::QuickStartTab);
+    dialog.exec();
 }
 
 void MainWindow::showAbout()
