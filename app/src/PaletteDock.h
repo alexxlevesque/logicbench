@@ -4,6 +4,10 @@
 #include <QString>
 #include <QTreeWidget>
 
+namespace lb {
+class BlockLibrary;
+}
+
 namespace lbgui {
 
 /// The palette tree. Overrides mimeData() so a component type can be dragged
@@ -29,6 +33,13 @@ public:
     /// again during this session.
     void addBlock(const QString& name, const QString& path);
 
+    /// The library whose blocks fill the Blocks group. Not owned.
+    void setLibrary(lb::BlockLibrary* library);
+
+    /// Rebuilds the Blocks group from the library, keeping any block placed
+    /// from a file during this session.
+    void refreshBlocks();
+
 signals:
     /// Double-click: place the type at the centre of the canvas.
     void typeActivated(const QString& payload);
@@ -38,6 +49,7 @@ private:
 
     PaletteTree* m_tree;
     QTreeWidgetItem* m_blocks = nullptr;
+    lb::BlockLibrary* m_library = nullptr;
 };
 
 } // namespace lbgui

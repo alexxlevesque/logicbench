@@ -17,6 +17,7 @@
 #include "TruthTableDialog.h"
 #include "WaveformDock.h"
 
+#include "logicbench/BlockLibrary.h"
 #include "logicbench/CircuitSerializer.h"
 #include "logicbench/Note.h"
 #include "logicbench/SubCircuit.h"
@@ -52,6 +53,8 @@ constexpr const char* kFileFilter = "LogicBench circuits (*.lbc);;All files (*)"
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_document(new CircuitDocument(this))
+    , m_library(std::make_unique<lb::BlockLibrary>(
+          QDir(QDir::homePath()).filePath(QStringLiteral("LogicBench/blocks")).toStdString()))
     , m_scene(new CircuitScene(m_document, this))
     , m_view(new CircuitView(m_scene, this))
     , m_runTimer(new QTimer(this))
@@ -305,6 +308,7 @@ void MainWindow::createToolBar()
 void MainWindow::createDocks()
 {
     m_palette = new PaletteDock(this);
+    m_palette->setLibrary(m_library.get());
     addDockWidget(Qt::LeftDockWidgetArea, m_palette);
     connect(m_palette, &PaletteDock::typeActivated, this, &MainWindow::placePayloadAtCentre);
 
@@ -568,21 +572,14 @@ void MainWindow::packageAsBlock()
         return;
     dialog.applyLabels();
 
-    const QString suggestion = QDir(blocksDirectory()).filePath(dialog.blockName() + ".lbc");
-    const QString path = QFileDialog::getSaveFileName(this, tr("Save block"), suggestion,
-                                                      tr(kFileFilter));
-    if (path.isEmpty())
-        return;
-
-    QString error;
-    if (!m_document->save(path, &error)) {
-        QMessageBox::warning(this, tr("Cannot save block"), error);
+    // Into the library, so the block is in the palette in every session.
+    try {
+        m_library->add(m_document->circuit(), dialog.blockName().toStdString());
+    } catch (const std::exception& e) {
+        QMessageBox::warning(this, tr("Cannot package block"), QString::fromUtf8(e.what()));
         return;
     }
-
-    // The block joins the palette for the rest of the session, so it can be
-    // dragged into the next circuit without a trip through the file dialog.
-    m_palette->addBlock(dialog.blockName(), path);
+    m_palette->refreshBlocks();
     updateWindowTitle();
     updateStatus(tr("Packaged as %1 — it is now in the palette under Blocks.")
                      .arg(dialog.blockName()));
@@ -674,7 +671,8 @@ void MainWindow::showBuildFromExpression()
 
 void MainWindow::showBlockLibrary()
 {
-    BlockLibraryDialog dialog(this);
+    BlockLibraryDialog dialog(m_library.get(), this);
+    connect(&dialog, &BlockLibraryDialog::libraryChanged, m_palette, &PaletteDock::refreshBlocks);
     dialog.exec();
 }
 

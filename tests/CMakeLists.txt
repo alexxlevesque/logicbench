@@ -28,6 +28,7 @@ add_executable(logicbench_tests
     KarnaughMapTest.cpp
     SimplifierTest.cpp
     SpecCheckerTest.cpp
+    BlockLibraryTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.

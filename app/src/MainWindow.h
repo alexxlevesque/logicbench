@@ -6,9 +6,15 @@
 #include <QMainWindow>
 #include <QString>
 
+#include <memory>
+
 class QAction;
 class QLabel;
 class QTimer;
+
+namespace lb {
+class BlockLibrary;
+}
 
 namespace lbgui {
 
@@ -43,6 +49,9 @@ public:
     /// The open circuit. Exposed so a screenshot run can build the same
     /// dialogs the menus build.
     CircuitDocument* document() const { return m_document; }
+
+    /// The block library the palette and Package as block use.
+    lb::BlockLibrary* blockLibrary() const { return m_library.get(); }
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -86,6 +95,7 @@ private:
     QString blocksDirectory() const;
 
     CircuitDocument* m_document;
+    std::unique_ptr<lb::BlockLibrary> m_library;
     CircuitScene* m_scene;
     CircuitView* m_view;
     PaletteDock* m_palette;
