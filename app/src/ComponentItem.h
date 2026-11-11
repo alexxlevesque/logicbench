@@ -53,6 +53,13 @@ private:
     void paintLed(QPainter* painter);
     void paintClock(QPainter* painter);
     void paintFlipFlop(QPainter* painter);
+    void paintMultiplexer(QPainter* painter);
+    void paintDecoder(QPainter* painter);
+    void paintHexDisplay(QPainter* painter);
+    void paintSevenSegment(QPainter* painter);
+    void paintNote(QPainter* painter);
+    /// Pin names written inside the body, beside their pins.
+    void paintPinNames(QPainter* painter, qreal inset);
     void paintBlock(QPainter* painter);
     void paintPins(QPainter* painter);
 

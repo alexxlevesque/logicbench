@@ -33,10 +33,10 @@ jobs:
       QT_QPA_PLATFORM: offscreen
     steps:
       - uses: actions/checkout@v4
-      - name: Install Qt 6
+      - name: Install Qt 6 (Widgets and Svg)
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends qt6-base-dev libgl1-mesa-dev
+          sudo apt-get install -y --no-install-recommends qt6-base-dev libqt6svg6-dev libgl1-mesa-dev
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLOGICBENCH_BUILD_GUI_TESTS=ON
       - name: Build

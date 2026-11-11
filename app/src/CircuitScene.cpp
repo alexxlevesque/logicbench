@@ -346,9 +346,23 @@ void CircuitScene::dropEvent(QGraphicsSceneDragDropEvent* event)
     }
 }
 
+void CircuitScene::setRenderStyle(const RenderStyle& style)
+{
+    m_style = style;
+    update();
+}
+
+QColor CircuitScene::signalColour(lb::Signal signal) const
+{
+    return m_style.signalColours ? theme::signalColor(signal) : theme::outlineColor();
+}
+
 void CircuitScene::drawBackground(QPainter* painter, const QRectF& rect)
 {
-    painter->fillRect(rect, theme::canvasColor());
+    if (m_style.background)
+        painter->fillRect(rect, theme::canvasColor());
+    if (!m_style.grid)
+        return;
 
     // A dot grid rather than lines: it marks the snap points without competing
     // with the wires for attention.

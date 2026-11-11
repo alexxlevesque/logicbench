@@ -5,6 +5,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QHash>
+#include <QColor>
 #include <QPointF>
 
 #include <memory>
@@ -51,6 +52,20 @@ public:
     /// Throws whatever the factory or the serializer throws.
     static std::unique_ptr<lb::Component> createFromPayload(const QString& payload);
 
+    /// How the canvas draws: everything on while editing; an export may turn
+    /// off the grid, the background, the signal colours or the labels.
+    struct RenderStyle {
+        bool grid = true;
+        bool background = true;
+        bool signalColours = true;   ///< false: every pin and wire in the outline colour, no 0/1/X
+        bool labels = true;
+    };
+    const RenderStyle& renderStyle() const { return m_style; }
+    void setRenderStyle(const RenderStyle& style);
+
+    /// The colour for a signal under the current style.
+    QColor signalColour(lb::Signal signal) const;
+
     bool snapToGrid() const { return m_snapToGrid; }
     void setSnapToGrid(bool enabled) { m_snapToGrid = enabled; }
 
@@ -85,6 +100,7 @@ private:
     QHash<lb::ComponentId, QPointF> m_moveOrigins;
     bool m_rebuilding = false;
     bool m_snapToGrid = true;
+    RenderStyle m_style;
 };
 
 /// A view with wheel zoom and middle-button panning. Everything else about

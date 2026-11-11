@@ -4,7 +4,9 @@
 #include "CircuitScene.h"
 #include "Theme.h"
 
+#include "logicbench/Displays.h"
 #include "logicbench/IoComponents.h"
+#include "logicbench/Note.h"
 #include "logicbench/SubCircuit.h"
 
 #include <QCursor>
@@ -54,6 +56,23 @@ void ComponentItem::refreshGeometry()
 
     qreal width = theme::kBodyWidth;
     const QString type = QString::fromStdString(c->typeName());
+    if (type == QLatin1String("NOTE")) {
+        // A note is as big as its text, within reason, and has no pins.
+        const auto* note = static_cast<const lb::Note*>(c);
+        QFont font;
+        font.setPointSizeF(9.0);
+        const QFontMetricsF metrics(font);
+        const QRectF text = metrics.boundingRect(QRectF(0, 0, 220, 2000), Qt::TextWordWrap,
+                                                 QString::fromStdString(note->text()));
+        prepareGeometryChange();
+        m_body = QRectF(0, 0, std::max(80.0, text.width() + 20.0), std::max(30.0, text.height() + 16.0));
+        return;
+    }
+    if (type == QLatin1String("SEG7"))
+        width = 70.0;
+    else if (type == QLatin1String("HEX") || type.startsWith(QLatin1String("DEC"))
+             || type.startsWith(QLatin1String("MUX")))
+        width = 64.0;
     if (type == QLatin1String("SUBCIRCUIT")) {
         // Blocks carry pin labels inside, so they need room for the longest.
         QFont font;
@@ -199,8 +218,18 @@ void ComponentItem::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QW
         paintLed(painter);
     else if (type == QLatin1String("CLOCK"))
         paintClock(painter);
-    else if (type == QLatin1String("DFF"))
+    else if (type == QLatin1String("DFF") || type == QLatin1String("JKFF") || type == QLatin1String("TFF"))
         paintFlipFlop(painter);
+    else if (type.startsWith(QLatin1String("MUX")))
+        paintMultiplexer(painter);
+    else if (type.startsWith(QLatin1String("DEC")))
+        paintDecoder(painter);
+    else if (type == QLatin1String("HEX"))
+        paintHexDisplay(painter);
+    else if (type == QLatin1String("SEG7"))
+        paintSevenSegment(painter);
+    else if (type == QLatin1String("NOTE"))
+        paintNote(painter);
     else if (type == QLatin1String("SUBCIRCUIT"))
         paintBlock(painter);
     else
@@ -225,7 +254,7 @@ void ComponentItem::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QW
 
     // The user's label sits under the body.
     const QString label = QString::fromStdString(c->label());
-    if (!label.isEmpty()) {
+    if (!label.isEmpty() && m_scene->renderStyle().labels) {
         QFont font = painter->font();
         font.setPointSizeF(8.5);
         font.setBold(true);
@@ -318,7 +347,7 @@ void ComponentItem::paintSwitch(QPainter* painter)
 
     const qreal knob = track.height();
     const qreal x = (state == lb::Signal::High) ? track.right() - knob : track.left();
-    painter->setBrush(theme::signalColor(state));
+    painter->setBrush(m_scene->signalColour(state));
     painter->drawEllipse(QRectF(x, track.top(), knob, knob));
 
     painter->setPen(theme::labelColor());
@@ -326,8 +355,9 @@ void ComponentItem::paintSwitch(QPainter* painter)
     font.setPointSizeF(10.0);
     font.setBold(true);
     painter->setFont(font);
-    painter->drawText(QRectF(m_body.right() - 20, m_body.top(), 16, m_body.height()),
-                      Qt::AlignCenter, QString(QChar(lb::toChar(state))));
+    if (m_scene->renderStyle().signalColours)
+        painter->drawText(QRectF(m_body.right() - 20, m_body.top(), 16, m_body.height()),
+                          Qt::AlignCenter, QString(QChar(lb::toChar(state))));
 }
 
 void ComponentItem::paintLed(QPainter* painter)
@@ -335,7 +365,7 @@ void ComponentItem::paintLed(QPainter* painter)
     const lb::Signal value = component()->pin(0).signal();
     const QRectF circle(m_body.center().x() - 13, m_body.center().y() - 13, 26, 26);
 
-    if (value == lb::Signal::High) {
+    if (value == lb::Signal::High && m_scene->renderStyle().signalColours) {
         // A soft halo so a lit lamp reads at a glance across the canvas.
         QRadialGradient glow(circle.center(), 22);
         glow.setColorAt(0.0, QColor(0x22, 0xA6, 0x55, 150));
@@ -346,7 +376,7 @@ void ComponentItem::paintLed(QPainter* painter)
     }
 
     painter->setPen(QPen(theme::outlineColor(), 1.6));
-    painter->setBrush(theme::signalColor(value));
+    painter->setBrush(m_scene->signalColour(value));
     painter->drawEllipse(circle);
 
     painter->setPen(QColor(0xFF, 0xFF, 0xFF));
@@ -354,7 +384,8 @@ void ComponentItem::paintLed(QPainter* painter)
     font.setPointSizeF(9.0);
     font.setBold(true);
     painter->setFont(font);
-    painter->drawText(circle, Qt::AlignCenter, QString(QChar(lb::toChar(value))));
+    if (m_scene->renderStyle().signalColours)
+        painter->drawText(circle, Qt::AlignCenter, QString(QChar(lb::toChar(value))));
 }
 
 void ComponentItem::paintClock(QPainter* painter)
@@ -378,7 +409,7 @@ void ComponentItem::paintClock(QPainter* painter)
     wave.lineTo(inner.right(), inner.bottom());
 
     painter->setBrush(Qt::NoBrush);
-    painter->setPen(QPen(theme::signalColor(component()->pin(0).signal()), 1.8));
+    painter->setPen(QPen(m_scene->signalColour(component()->pin(0).signal()), 1.8));
     painter->drawPath(wave);
 }
 
@@ -397,8 +428,10 @@ void ComponentItem::paintFlipFlop(QPainter* painter)
     for (std::size_t p = 0; p < c->pinCount(); ++p) {
         const QPointF pin = pinPosition(static_cast<int>(p));
         const bool isInput = c->pin(p).isInput();
-        const QRectF slot(isInput ? m_body.left() + 3 : m_body.right() - 27,
-                          pin.y() - 7, 24, 14);
+        // The clock's name sits clear of its wedge, and QBAR gets room to fit.
+        const bool clock = c->pin(p).name() == "CLK";
+        const QRectF slot(isInput ? m_body.left() + (clock ? 9 : 3) : m_body.right() - 33,
+                          pin.y() - 7, 30, 14);
         painter->drawText(slot, isInput ? Qt::AlignLeft | Qt::AlignVCenter
                                         : Qt::AlignRight | Qt::AlignVCenter,
                           QString::fromStdString(c->pin(p).name()));
@@ -416,6 +449,159 @@ void ComponentItem::paintFlipFlop(QPainter* painter)
         painter->setBrush(Qt::NoBrush);
         painter->drawPath(wedge);
     }
+}
+
+void ComponentItem::paintPinNames(QPainter* painter, qreal inset)
+{
+    const lb::Component* c = component();
+    QFont font = painter->font();
+    font.setPointSizeF(7.0);
+    font.setBold(false);
+    painter->setFont(font);
+    painter->setPen(theme::labelColor());
+    for (std::size_t p = 0; p < c->pinCount(); ++p) {
+        const QPointF pin = pinPosition(static_cast<int>(p));
+        const bool isInput = c->pin(p).isInput();
+        const QRectF slot(isInput ? m_body.left() + inset : m_body.right() - inset - 26,
+                          pin.y() - 7, 26, 14);
+        painter->drawText(slot, isInput ? Qt::AlignLeft | Qt::AlignVCenter
+                                        : Qt::AlignRight | Qt::AlignVCenter,
+                          QString::fromStdString(c->pin(p).name()));
+    }
+}
+
+void ComponentItem::paintMultiplexer(QPainter* painter)
+{
+    // The usual trapezoid: wide on the data side, narrow at the output.
+    const qreal slope = m_body.height() * 0.18;
+    QPainterPath body;
+    body.moveTo(m_body.topLeft());
+    body.lineTo(m_body.right(), m_body.top() + slope);
+    body.lineTo(m_body.right(), m_body.bottom() - slope);
+    body.lineTo(m_body.bottomLeft());
+    body.closeSubpath();
+    painter->setPen(QPen(theme::outlineColor(), 1.6));
+    painter->setBrush(theme::bodyColor());
+    painter->drawPath(body);
+
+    paintPinNames(painter, 4.0);
+    QFont font = painter->font();
+    font.setPointSizeF(7.5);
+    font.setBold(true);
+    painter->setFont(font);
+    // Above the body: inside, it would collide with the sloped edge.
+    painter->drawText(QRectF(m_body.left(), m_body.top() - 13, m_body.width(), 12),
+                      Qt::AlignCenter, QStringLiteral("MUX"));
+}
+
+void ComponentItem::paintDecoder(QPainter* painter)
+{
+    painter->setPen(QPen(theme::outlineColor(), 1.6));
+    painter->setBrush(theme::bodyColor());
+    painter->drawRect(m_body);
+    paintPinNames(painter, 3.0);
+
+    const bool three = component()->typeName() == "DEC3";
+    QFont font = painter->font();
+    font.setPointSizeF(7.5);
+    font.setBold(true);
+    painter->setFont(font);
+    painter->drawText(QRectF(m_body.left(), m_body.bottom() - 15, m_body.width() - 30, 13),
+                      Qt::AlignLeft | Qt::AlignVCenter, three ? QStringLiteral(" 3:8") : QStringLiteral(" 2:4"));
+}
+
+void ComponentItem::paintHexDisplay(QPainter* painter)
+{
+    const auto* hex = static_cast<const lb::HexDisplay*>(component());
+    painter->setPen(QPen(theme::outlineColor(), 1.6));
+    painter->setBrush(QColor(0x1F, 0x29, 0x37));
+    painter->drawRoundedRect(m_body, 4, 4);
+
+    const int digit = hex->digit();
+    const QString text = digit < 0 ? QStringLiteral("–")
+                                   : QString::number(digit, 16).toUpper();
+    QFont font = painter->font();
+    font.setPointSizeF(24.0);
+    font.setBold(true);
+    painter->setFont(font);
+    painter->setPen(digit < 0 ? theme::signalColor(lb::Signal::Undefined) : QColor(0xFF, 0x5A, 0x36));
+    painter->drawText(m_body.adjusted(18, 0, 0, 0), Qt::AlignCenter, text);
+
+    font.setPointSizeF(6.5);
+    font.setBold(false);
+    painter->setFont(font);
+    painter->setPen(QColor(0xC9, 0xD1, 0xDB));
+    const lb::Component* c = component();
+    for (std::size_t p = 0; p < c->pinCount(); ++p) {
+        const QPointF pin = pinPosition(static_cast<int>(p));
+        painter->drawText(QRectF(m_body.left() + 3, pin.y() - 6, 16, 12), Qt::AlignLeft | Qt::AlignVCenter,
+                          QString::number(1 << p));
+    }
+}
+
+void ComponentItem::paintSevenSegment(QPainter* painter)
+{
+    const auto* display = static_cast<const lb::SevenSegmentDisplay*>(component());
+    painter->setPen(QPen(theme::outlineColor(), 1.6));
+    painter->setBrush(QColor(0x1F, 0x29, 0x37));
+    painter->drawRoundedRect(m_body, 4, 4);
+
+    // Segment geometry in a digit cell to the right of the pin names.
+    const QRectF cell = m_body.adjusted(22, 14, -8, -14);
+    const qreal t = 5.0;                                   // segment thickness
+    const qreal w = cell.width();
+    const qreal h = (cell.height() - t) / 2.0;
+    const auto horizontal = [&](qreal y) { return QRectF(cell.left() + t, y, w - 2 * t, t); };
+    const auto vertical = [&](qreal x, qreal y) { return QRectF(x, y + t, t, h - t); };
+    const QRectF segments[lb::SevenSegmentDisplay::kSegments] = {
+        horizontal(cell.top()),                              // a
+        vertical(cell.right() - t, cell.top()),              // b
+        vertical(cell.right() - t, cell.top() + h),          // c
+        horizontal(cell.top() + 2 * h),                      // d
+        vertical(cell.left(), cell.top() + h),               // e
+        vertical(cell.left(), cell.top()),                   // f
+        horizontal(cell.top() + h),                          // g
+    };
+    for (int i = 0; i < lb::SevenSegmentDisplay::kSegments; ++i) {
+        const lb::Signal s = display->segment(i);
+        if (s == lb::Signal::High) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(0xFF, 0x5A, 0x36));
+        } else if (s == lb::Signal::Low) {
+            painter->setPen(Qt::NoPen);
+            painter->setBrush(QColor(0x3A, 0x41, 0x50));
+        } else {
+            // Unknown: an outline in the X colour, so it is neither on nor off.
+            painter->setPen(QPen(theme::signalColor(lb::Signal::Undefined), 1.0, Qt::DashLine));
+            painter->setBrush(Qt::NoBrush);
+        }
+        painter->drawRoundedRect(segments[i], 2, 2);
+    }
+
+    QFont font = painter->font();
+    font.setPointSizeF(6.5);
+    painter->setFont(font);
+    painter->setPen(QColor(0xC9, 0xD1, 0xDB));
+    for (std::size_t p = 0; p < display->pinCount(); ++p) {
+        const QPointF pin = pinPosition(static_cast<int>(p));
+        painter->drawText(QRectF(m_body.left() + 4, pin.y() - 6, 12, 12), Qt::AlignLeft | Qt::AlignVCenter,
+                          QString::fromStdString(display->pin(p).name()));
+    }
+}
+
+void ComponentItem::paintNote(QPainter* painter)
+{
+    const auto* note = static_cast<const lb::Note*>(component());
+    painter->setPen(QPen(QColor(0xE0, 0xC9, 0x6B), 1.2));
+    painter->setBrush(QColor(0xFF, 0xF7, 0xC2));
+    painter->drawRoundedRect(m_body, 3, 3);
+    QFont font = painter->font();
+    font.setPointSizeF(9.0);
+    font.setBold(false);
+    painter->setFont(font);
+    painter->setPen(theme::labelColor());
+    painter->drawText(m_body.adjusted(10, 8, -10, -8), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop,
+                      QString::fromStdString(note->text()));
 }
 
 void ComponentItem::paintBlock(QPainter* painter)
@@ -456,11 +642,11 @@ void ComponentItem::paintPins(QPainter* painter)
         const bool isInput = c->pin(p).isInput();
         const QPointF anchor(isInput ? m_body.left() : m_body.right(), pin.y());
 
-        painter->setPen(QPen(theme::signalColor(c->pin(p).signal()), 1.8));
+        painter->setPen(QPen(m_scene->signalColour(c->pin(p).signal()), 1.8));
         painter->drawLine(anchor, pin);
 
         const bool hovered = (static_cast<int>(p) == m_hoverPin);
-        painter->setBrush(hovered ? theme::selectionColor() : theme::signalColor(c->pin(p).signal()));
+        painter->setBrush(hovered ? theme::selectionColor() : m_scene->signalColour(c->pin(p).signal()));
         painter->setPen(Qt::NoPen);
         painter->drawEllipse(pin, hovered ? 4.0 : 2.6, hovered ? 4.0 : 2.6);
     }

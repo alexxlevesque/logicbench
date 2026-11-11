@@ -58,6 +58,9 @@ public:
 
     explicit WaveformDock(CircuitDocument* document, QWidget* parent = nullptr);
 
+    /// The drawing itself, for Export image.
+    WaveformWidget* waveformWidget() const { return m_waveforms; }
+
 public slots:
     /// Rebuilds the list of signals that can be plotted.
     void refreshSignalList();

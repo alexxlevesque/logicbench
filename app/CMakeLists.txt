@@ -1,6 +1,6 @@
 # The Qt 6 interface. This is the only target that knows Qt exists.
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Svg)
 
 qt_standard_project_setup()
 
@@ -22,6 +22,8 @@ set(LOGICBENCH_APP_SOURCES
     src/AutosaveManager.cpp
     src/ExampleCatalog.cpp
     src/QuickStartTracker.cpp
+    src/ImageExporter.cpp
+    src/KarnaughMapWidget.cpp
     src/ExpressionDialog.cpp
     src/SimplifyDialog.cpp
     src/SpecCheckDialog.cpp
@@ -43,7 +45,7 @@ target_include_directories(logicbench PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 # FR-3 packages them as resources.
 target_compile_definitions(logicbench PRIVATE
     LOGICBENCH_EXAMPLES_DIR="${PROJECT_SOURCE_DIR}/examples")
-target_link_libraries(logicbench PRIVATE logicbench_engine Qt6::Widgets)
+target_link_libraries(logicbench PRIVATE logicbench_engine Qt6::Widgets Qt6::Svg)
 
 set_target_properties(logicbench PROPERTIES
     MACOSX_BUNDLE TRUE
