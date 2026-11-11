@@ -2,6 +2,7 @@
 
 #include "CircuitScene.h"
 
+#include "logicbench/BlockLibrary.h"
 #include "logicbench/ComponentFactory.h"
 
 #include <QFileInfo>
@@ -12,6 +13,7 @@ namespace lbgui {
 
 namespace {
 constexpr int kPayloadRole = Qt::UserRole + 1;
+constexpr int kFromLibraryRole = Qt::UserRole + 2;
 } // namespace
 
 PaletteTree::PaletteTree(QWidget* parent)
@@ -104,6 +106,35 @@ void PaletteDock::addBlock(const QString& name, const QString& path)
     // the circuit and wraps it.
     entry->setData(0, kPayloadRole, QStringLiteral("@block:") + path);
     entry->setToolTip(0, QFileInfo(path).absoluteFilePath());
+    m_blocks->setExpanded(true);
+}
+
+void PaletteDock::setLibrary(lb::BlockLibrary* library)
+{
+    m_library = library;
+    refreshBlocks();
+}
+
+void PaletteDock::refreshBlocks()
+{
+    // Drop the library's entries; blocks placed from a file this session stay.
+    for (int i = m_blocks->childCount() - 1; i >= 0; --i) {
+        if (m_blocks->child(i)->data(0, kFromLibraryRole).toBool())
+            delete m_blocks->takeChild(i);
+    }
+    if (!m_library)
+        return;
+    int insertAt = 0;
+    for (const lb::BlockInfo& info : m_library->list()) {
+        auto* entry = new QTreeWidgetItem(QStringList{QString::fromStdString(info.name)});
+        entry->setData(0, kPayloadRole, QStringLiteral("@block:") + QString::fromStdString(info.path.string()));
+        entry->setData(0, kFromLibraryRole, true);
+        entry->setToolTip(0, tr("%1 in, %2 out: %3")
+                                 .arg(info.inputs.size())
+                                 .arg(info.outputs.size())
+                                 .arg(QString::fromStdString(info.contents)));
+        m_blocks->insertChild(insertAt++, entry);
+    }
     m_blocks->setExpanded(true);
 }
 

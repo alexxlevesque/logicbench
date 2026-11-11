@@ -90,7 +90,7 @@ int main(int argc, char* argv[])
             } else if (name == QLatin1String("spec-check")) {
                 dialog = new lbgui::SpecCheckDialog(window.document(), &window);
             } else if (name == QLatin1String("block-library")) {
-                dialog = new lbgui::BlockLibraryDialog(&window);
+                dialog = new lbgui::BlockLibraryDialog(window.blockLibrary(), &window);
             } else if (name == QLatin1String("export-image")) {
                 dialog = new lbgui::ExportImageDialog(true, &window);
             } else if (name == QLatin1String("examples") || name == QLatin1String("quick-start")) {
