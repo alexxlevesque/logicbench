@@ -56,6 +56,13 @@ private slots:
     void packageAsBlock();
     void placeBlockFromFile();
     void showPreferences();
+    void showExportImage();
+    void showSimplify();
+    void showSpecCheck();
+    void showBuildFromExpression();
+    void showBlockLibrary();
+    void showExamples();
+    void showQuickStart();
     void showAbout();
     void updateWindowTitle();
     void updateStatus(const QString& message);
@@ -100,6 +107,14 @@ private:
     QAction* m_placeBlockAction;
     QAction* m_preferencesAction;
     QAction* m_aboutAction;
+    // Planned windows (FR-3 to FR-8), opened as shells until wired in.
+    QAction* m_exportImageAction;
+    QAction* m_simplifyAction;
+    QAction* m_specCheckAction;
+    QAction* m_buildExpressionAction;
+    QAction* m_blockLibraryAction;
+    QAction* m_examplesAction;
+    QAction* m_quickStartAction;
 
     int m_tickIntervalMs = 40;
 };

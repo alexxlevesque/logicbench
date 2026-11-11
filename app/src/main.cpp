@@ -1,8 +1,15 @@
+#include "BlockLibraryDialog.h"
+#include "ExamplesDialog.h"
+#include "ExportImageDialog.h"
+#include "ExpressionDialog.h"
 #include "MainWindow.h"
+#include "SimplifyDialog.h"
+#include "SpecCheckDialog.h"
 #include "TruthTableDialog.h"
 
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QMessageBox>
 #include <QPixmap>
 #include <QTimer>
 
@@ -49,6 +56,17 @@ int main(int argc, char* argv[])
         QCoreApplication::translate("main", "Plot every signal on the timing diagram."));
     parser.addOption(traceAllOption);
 
+    // Opens one planned window (FR-3 to FR-8) over the main window and
+    // leaves it up, so it can be captured with its title bar. The SDD's
+    // screen captures are taken this way.
+    QCommandLineOption showDialogOption(
+        QStringList{QStringLiteral("show-dialog")},
+        QCoreApplication::translate("main",
+            "Open a planned window: expression, simplify, spec-check, block-library, "
+            "export-image, examples, quick-start or recovery."),
+        QCoreApplication::translate("main", "name"));
+    parser.addOption(showDialogOption);
+
     parser.process(app);
 
     lbgui::MainWindow window;
@@ -57,6 +75,50 @@ int main(int argc, char* argv[])
     const QStringList positional = parser.positionalArguments();
     if (!positional.isEmpty())
         window.openFile(positional.first());
+
+    if (parser.isSet(showDialogOption)) {
+        const QString name = parser.value(showDialogOption);
+        QTimer::singleShot(300, &window, [&window, name] {
+            QDialog* dialog = nullptr;
+            if (name == QLatin1String("expression")) {
+                auto* d = new lbgui::ExpressionDialog(window.document(), &window);
+                d->setEquations(QStringLiteral("S    = A ^ B ^ Cin\n"
+                                               "Cout = (A & B) | (Cin & (A ^ B))"));
+                dialog = d;
+            } else if (name == QLatin1String("simplify")) {
+                dialog = new lbgui::SimplifyDialog(window.document(), &window);
+            } else if (name == QLatin1String("spec-check")) {
+                dialog = new lbgui::SpecCheckDialog(window.document(), &window);
+            } else if (name == QLatin1String("block-library")) {
+                dialog = new lbgui::BlockLibraryDialog(&window);
+            } else if (name == QLatin1String("export-image")) {
+                dialog = new lbgui::ExportImageDialog(true, &window);
+            } else if (name == QLatin1String("examples") || name == QLatin1String("quick-start")) {
+                auto* d = new lbgui::ExamplesDialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), &window);
+                if (name == QLatin1String("quick-start"))
+                    d->showTab(lbgui::ExamplesDialog::QuickStartTab);
+                dialog = d;
+            } else if (name == QLatin1String("recovery")) {
+                // FR-3's launch prompt, as AutosaveManager will show it.
+                auto* box = new QMessageBox(QMessageBox::Question, QObject::tr("LogicBench"),
+                    QObject::tr("LogicBench closed unexpectedly."),
+                    QMessageBox::NoButton, &window);
+                box->setInformativeText(QObject::tr(
+                    "Restore the unsaved work from 14:32 today (full_adder.lbc)?"));
+                box->addButton(QObject::tr("Restore"), QMessageBox::AcceptRole);
+                box->addButton(QObject::tr("Discard"), QMessageBox::DestructiveRole);
+                dialog = box;
+            }
+            if (dialog) {
+                dialog->setWindowModality(Qt::NonModal);
+                dialog->show();
+                dialog->raise();
+                dialog->activateWindow();
+            } else {
+                std::cerr << "unknown dialog: " << name.toStdString() << '\n';
+            }
+        });
+    }
 
     if (parser.isSet(screenshotOption)) {
         const QString path = parser.value(screenshotOption);
