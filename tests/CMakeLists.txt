@@ -27,6 +27,7 @@ add_executable(logicbench_tests
     SopMinimizerTest.cpp
     KarnaughMapTest.cpp
     SimplifierTest.cpp
+    SpecCheckerTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.

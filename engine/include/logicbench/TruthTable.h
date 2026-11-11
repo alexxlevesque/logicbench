@@ -59,6 +59,11 @@ public:
     /// selection the dialog opens with.
     static std::vector<ComponentId> allSwitches(const Circuit& circuit);
     static std::vector<ComponentId> allLeds(const Circuit& circuit);
+
+    /// The first component of this type whose label is `label` (surrounding
+    /// spaces ignored), or kNoComponent. SpecChecker matches columns this way.
+    static ComponentId byLabel(const Circuit& circuit, const std::string& label,
+                               const std::string& typeName);
 };
 
 } // namespace lb

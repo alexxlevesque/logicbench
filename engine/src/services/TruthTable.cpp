@@ -70,6 +70,23 @@ std::vector<ComponentId> TruthTableGenerator::allLeds(const Circuit& circuit)
     return ids;
 }
 
+ComponentId TruthTableGenerator::byLabel(const Circuit& circuit, const std::string& label,
+                                         const std::string& typeName)
+{
+    const auto trim = [](const std::string& s) {
+        const auto first = s.find_first_not_of(" \t");
+        if (first == std::string::npos)
+            return std::string();
+        return s.substr(first, s.find_last_not_of(" \t") - first + 1);
+    };
+    const std::string wanted = trim(label);
+    for (Component* c : circuit.componentsOfType(typeName)) {
+        if (trim(c->label()) == wanted && !wanted.empty())
+            return c->id();
+    }
+    return kNoComponent;
+}
+
 TruthTableResult TruthTableGenerator::generate(Circuit& circuit,
                                                const std::vector<ComponentId>& switches,
                                                const std::vector<ComponentId>& leds)
