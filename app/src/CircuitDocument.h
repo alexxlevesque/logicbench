@@ -67,6 +67,15 @@ public:
     bool open(const QString& path, QString* error);
     bool save(const QString& path, QString* error);
 
+    /// Opens a file as a new untitled circuit (the bundled examples): the
+    /// original is never written by a later Save.
+    bool openCopy(const QString& path, QString* error);
+
+    /// Loads the autosaved recovery file. The circuit takes the original's
+    /// path (empty if it was untitled) and counts as unsaved, so Save writes
+    /// it back where it belongs and Quit still asks.
+    bool restoreRecovery(const QString& recoveryPath, const QString& originalPath, QString* error);
+
     // ---- simulation -------------------------------------------------------
     void resimulate();
     void advance(lb::Tick ticks);

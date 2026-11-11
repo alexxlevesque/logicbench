@@ -18,6 +18,10 @@ set(LOGICBENCH_APP_SOURCES
     src/TruthTableDialog.cpp
     src/SubcircuitDialog.cpp
     src/CircuitClipboard.cpp
+    src/AppSettings.cpp
+    src/AutosaveManager.cpp
+    src/ExampleCatalog.cpp
+    src/QuickStartTracker.cpp
     src/ExpressionDialog.cpp
     src/SimplifyDialog.cpp
     src/SpecCheckDialog.cpp

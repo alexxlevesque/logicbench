@@ -1,5 +1,7 @@
 #include "MainWindow.h"
 
+#include "AppSettings.h"
+#include "AutosaveManager.h"
 #include "CircuitClipboard.h"
 #include "CircuitDocument.h"
 #include "BlockLibraryDialog.h"
@@ -10,6 +12,7 @@
 #include "ExpressionDialog.h"
 #include "PaletteDock.h"
 #include "PropertiesDock.h"
+#include "QuickStartTracker.h"
 #include "Theme.h"
 #include "SimplifyDialog.h"
 #include "SpecCheckDialog.h"
@@ -39,6 +42,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QSpinBox>
+#include <QStandardPaths>
 #include <QStatusBar>
 #include <QTimer>
 #include <QToolBar>
@@ -52,15 +56,26 @@ constexpr const char* kFileFilter = "LogicBench circuits (*.lbc);;All files (*)"
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
+    , m_settings(std::make_unique<AppSettings>())
     , m_document(new CircuitDocument(this))
-    , m_library(std::make_unique<lb::BlockLibrary>(
-          QDir(QDir::homePath()).filePath(QStringLiteral("LogicBench/blocks")).toStdString()))
+    , m_library(std::make_unique<lb::BlockLibrary>(m_settings->blockLibraryDirectory().toStdString()))
+    , m_autosave(new AutosaveManager(
+          m_document, QStandardPaths::writableLocation(QStandardPaths::AppDataLocation), this))
+    , m_quickStart(new QuickStartTracker(m_document, this))
     , m_scene(new CircuitScene(m_document, this))
     , m_view(new CircuitView(m_scene, this))
     , m_runTimer(new QTimer(this))
     , m_statusLabel(new QLabel(this))
     , m_simulationLabel(new QLabel(this))
 {
+    m_tickIntervalMs = m_settings->tickIntervalMs();
+    m_scene->setSnapToGrid(m_settings->snapToGrid());
+    connect(m_quickStart, &QuickStartTracker::progressed, this, [this](int step) {
+        updateStatus(tr("Quick start: step %1 of %2 done.").arg(step + 1).arg(QuickStartTracker::kSteps));
+        if (m_quickStart->doneCount() == QuickStartTracker::kSteps)
+            m_settings->setQuickStartDone(true);
+    });
+
     setCentralWidget(m_view);
     setWindowIcon(QIcon());
     resize(1180, 780);
@@ -420,10 +435,24 @@ bool MainWindow::confirmDiscardChanges()
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
-    if (confirmDiscardChanges())
-        event->accept();
-    else
+    if (!confirmDiscardChanges()) {
         event->ignore();
+        return;
+    }
+    // A clean exit: nothing to recover next time.
+    m_autosave->discardRecovery();
+    m_settings->sync();
+    event->accept();
+}
+
+bool MainWindow::offerRecovery()
+{
+    if (!m_autosave->offerRecovery(this))
+        return false;
+    m_view->frameCircuit();
+    updateWindowTitle();
+    updateStatus(tr("Restored the unsaved work. Save it to keep it."));
+    return true;
 }
 
 QString MainWindow::blocksDirectory() const
@@ -553,6 +582,7 @@ void MainWindow::resetSimulation()
 void MainWindow::showTruthTable()
 {
     TruthTableDialog dialog(m_document, this);
+    m_quickStart->markTruthTableOpened();
     dialog.exec();
 }
 
@@ -636,6 +666,8 @@ void MainWindow::showPreferences()
     m_tickIntervalMs = interval->value();
     m_runTimer->setInterval(m_tickIntervalMs);
     m_scene->setSnapToGrid(snap->isChecked());
+    m_settings->setTickIntervalMs(m_tickIntervalMs);
+    m_settings->setSnapToGrid(snap->isChecked());
 }
 
 // ----------------------------------------------- planned windows (shells) --

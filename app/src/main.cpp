@@ -72,8 +72,12 @@ int main(int argc, char* argv[])
     lbgui::MainWindow window;
     window.show();
 
+    // Recovery comes first: if the last session crashed, its unsaved work is
+    // worth more than the file named on the command line. A screenshot run
+    // never stops to ask.
+    const bool restored = !parser.isSet(screenshotOption) && window.offerRecovery();
     const QStringList positional = parser.positionalArguments();
-    if (!positional.isEmpty())
+    if (!restored && !positional.isEmpty())
         window.openFile(positional.first());
 
     if (parser.isSet(showDialogOption)) {
