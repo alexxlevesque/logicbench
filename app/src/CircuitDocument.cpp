@@ -188,6 +188,26 @@ bool CircuitDocument::open(const QString& path, QString* error)
     }
 }
 
+bool CircuitDocument::openCopy(const QString& path, QString* error)
+{
+    if (!open(path, error))
+        return false;
+    m_filePath.clear();
+    emit structureChanged();
+    return true;
+}
+
+bool CircuitDocument::restoreRecovery(const QString& recoveryPath, const QString& originalPath,
+                                      QString* error)
+{
+    if (!open(recoveryPath, error))
+        return false;
+    m_filePath = originalPath;
+    m_undoStack.resetClean();          // unsaved: never clean until the next save
+    emit structureChanged();
+    return true;
+}
+
 bool CircuitDocument::save(const QString& path, QString* error)
 {
     try {

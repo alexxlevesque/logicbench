@@ -1,0 +1,34 @@
+{
+  "examples": [
+    {
+      "file": "half_adder.lbc",
+      "title": "Half adder",
+      "description": "An XOR gate for the sum and an AND gate for the carry. Flip A and B through all four combinations, then open the truth table."
+    },
+    {
+      "file": "full_adder.lbc",
+      "title": "Full adder",
+      "description": "Two half-adder blocks and an OR gate. The first example that uses blocks: it is the circuit inside every stage of the 4-bit adder."
+    },
+    {
+      "file": "adder4.lbc",
+      "title": "4-bit adder",
+      "description": "Four full-adder blocks in a ripple chain, two levels of nesting. Flip A0–A3 and B0–B3 to add two 4-bit numbers."
+    },
+    {
+      "file": "counter3.lbc",
+      "title": "3-bit counter",
+      "description": "A clock and three D flip-flops. Press Run (F5) and watch the bits count in the timing diagram."
+    },
+    {
+      "file": "sr_latch.lbc",
+      "title": "SR latch",
+      "description": "Two cross-coupled NOR gates: memory without a clock. Set, then reset, and see that it holds in between."
+    },
+    {
+      "file": "ring_oscillator.lbc",
+      "title": "Ring oscillator",
+      "description": "Three inverters in a ring. The loop can never settle, so LogicBench outlines it and reports it instead of hanging."
+    }
+  ]
+}

@@ -74,13 +74,16 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
         app/AppTestMain.cpp
         app/ClipboardTest.cpp
         app/BuildFromEquationsTest.cpp
+        app/AutosaveTest.cpp
+        app/ExampleCatalogTest.cpp
+        app/QuickStartTest.cpp
         ${LOGICBENCH_APP_SOURCES}
     )
     target_include_directories(logicbench_app_tests PRIVATE ${LOGICBENCH_APP_INCLUDE_DIR})
     target_compile_definitions(logicbench_app_tests PRIVATE
         LOGICBENCH_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/examples")
     target_link_libraries(logicbench_app_tests
-        PRIVATE logicbench_engine Qt6::Widgets GTest::gtest)
+        PRIVATE logicbench_engine Qt6::Widgets Qt6::Test GTest::gtest)
     gtest_discover_tests(logicbench_app_tests
         PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         DISCOVERY_TIMEOUT 30)

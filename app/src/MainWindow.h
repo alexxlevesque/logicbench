@@ -18,8 +18,11 @@ class BlockLibrary;
 
 namespace lbgui {
 
+class AppSettings;
+class AutosaveManager;
 class CircuitDocument;
 class CircuitScene;
+class QuickStartTracker;
 class CircuitView;
 class PaletteDock;
 class PropertiesDock;
@@ -52,6 +55,14 @@ public:
 
     /// The block library the palette and Package as block use.
     lb::BlockLibrary* blockLibrary() const { return m_library.get(); }
+
+    AppSettings* settings() const { return m_settings.get(); }
+    AutosaveManager* autosave() const { return m_autosave; }
+    QuickStartTracker* quickStart() const { return m_quickStart; }
+
+    /// At launch: if LogicBench crashed with unsaved work, offers it back.
+    /// Returns true if it was restored.
+    bool offerRecovery();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -94,8 +105,11 @@ private:
     void selectComponents(const QList<lb::ComponentId>& ids);
     QString blocksDirectory() const;
 
+    std::unique_ptr<AppSettings> m_settings;
     CircuitDocument* m_document;
     std::unique_ptr<lb::BlockLibrary> m_library;
+    AutosaveManager* m_autosave;
+    QuickStartTracker* m_quickStart;
     CircuitScene* m_scene;
     CircuitView* m_view;
     PaletteDock* m_palette;
