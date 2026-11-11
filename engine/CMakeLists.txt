@@ -32,6 +32,7 @@ add_library(logicbench_engine STATIC
     src/core/Gates.cpp
     src/core/IoComponents.cpp
     src/core/FlipFlop.cpp
+    src/core/Multiplexer.cpp
     src/core/Circuit.cpp
     src/core/Simulator.cpp
     src/core/SubCircuit.cpp

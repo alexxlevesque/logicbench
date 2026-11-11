@@ -3,6 +3,7 @@
 #include "logicbench/FlipFlop.h"
 #include "logicbench/Gates.h"
 #include "logicbench/IoComponents.h"
+#include "logicbench/Multiplexer.h"
 #include "logicbench/SubCircuit.h"
 
 #include <algorithm>
@@ -93,6 +94,12 @@ const ComponentFactory& ComponentFactory::standard()
                        [] { return std::make_unique<JKFlipFlop>(); });
         f.registerType({"TFF", "T flip-flop", "Sequential", "Toggles on the rising clock edge while T is high"},
                        [] { return std::make_unique<TFlipFlop>(); });
+        f.registerType({"MUX2", "2:1 multiplexer", "Multiplexers and decoders",
+                        "S0 chooses D0 or D1"},
+                       [] { return std::make_unique<Multiplexer>(2); });
+        f.registerType({"MUX4", "4:1 multiplexer", "Multiplexers and decoders",
+                        "S1 S0 choose one of D0 to D3"},
+                       [] { return std::make_unique<Multiplexer>(4); });
         f.registerType({"SUBCIRCUIT", "Subcircuit", "Blocks", "A saved circuit used as one block"},
                        [] { return std::make_unique<SubCircuit>(); });
         return f;
