@@ -1,5 +1,7 @@
 #include "logicbench/ComponentFactory.h"
 
+#include "logicbench/Decoder.h"
+#include "logicbench/Displays.h"
 #include "logicbench/FlipFlop.h"
 #include "logicbench/Gates.h"
 #include "logicbench/IoComponents.h"
@@ -100,6 +102,17 @@ const ComponentFactory& ComponentFactory::standard()
         f.registerType({"MUX4", "4:1 multiplexer", "Multiplexers and decoders",
                         "S1 S0 choose one of D0 to D3"},
                        [] { return std::make_unique<Multiplexer>(4); });
+        f.registerType({"DEC2", "2-to-4 decoder", "Multiplexers and decoders",
+                        "Raises the one output A1 A0 selects"},
+                       [] { return std::make_unique<Decoder>(2); });
+        f.registerType({"DEC3", "3-to-8 decoder", "Multiplexers and decoders",
+                        "Raises the one output A2 A1 A0 selects"},
+                       [] { return std::make_unique<Decoder>(3); });
+        f.registerType({"HEX", "Hex display", "Displays", "Shows the digit 0 to F on D3..D0"},
+                       [] { return std::make_unique<HexDisplay>(); });
+        f.registerType({"SEG7", "Seven-segment display", "Displays",
+                        "Segments a to g, each lit by its own input"},
+                       [] { return std::make_unique<SevenSegmentDisplay>(); });
         f.registerType({"SUBCIRCUIT", "Subcircuit", "Blocks", "A saved circuit used as one block"},
                        [] { return std::make_unique<SubCircuit>(); });
         return f;
