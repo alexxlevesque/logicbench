@@ -50,6 +50,13 @@ public:
     QList<lb::ComponentId> insertFragment(const lb::Circuit& fragment, QPointF offset,
                                           const QString& description);
 
+    /// Parses the equations and builds their circuit (one switch per input,
+    /// one LED per output), as one undo step. intoOpen adds it to the right of
+    /// what is already on the canvas; otherwise it replaces the canvas with a
+    /// new untitled circuit. On a syntax error nothing changes and `error`
+    /// gives the line and column.
+    bool buildFromEquations(const QString& text, bool intoOpen, QString* error = nullptr);
+
     /// Flipping a switch is deliberately not undoable: it is an input to the
     /// simulation, not an edit to the circuit, and filling the undo stack with
     /// clicks would bury the edits the user actually wants back.

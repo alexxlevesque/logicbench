@@ -22,6 +22,8 @@ add_executable(logicbench_tests
     DecoderTest.cpp
     DisplayTest.cpp
     FragmentTest.cpp
+    ExpressionParserTest.cpp
+    CircuitBuilderTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.
@@ -66,6 +68,7 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
     add_executable(logicbench_app_tests
         app/AppTestMain.cpp
         app/ClipboardTest.cpp
+        app/BuildFromEquationsTest.cpp
         ${LOGICBENCH_APP_SOURCES}
     )
     target_include_directories(logicbench_app_tests PRIVATE ${LOGICBENCH_APP_INCLUDE_DIR})
