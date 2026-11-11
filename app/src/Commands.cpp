@@ -232,4 +232,27 @@ void SetPropertyCommand::undo()
     m_document->notifyStructureChanged();
 }
 
+// ---------------------------------------------------- insert a fragment ----
+
+InsertFragmentCommand::InsertFragmentCommand(CircuitDocument* document, lb::Circuit fragment,
+                                             QPointF offset, const QString& text)
+    : m_document(document)
+    , m_fragment(std::move(fragment))
+    , m_offset(offset)
+{
+    setText(text);
+}
+
+void InsertFragmentCommand::redo()
+{
+    m_ids = m_document->insertFragmentIds(m_fragment, m_offset, m_ids);
+    m_document->notifyStructureChanged();
+}
+
+void InsertFragmentCommand::undo()
+{
+    m_document->removeFragment(m_ids);
+    m_document->notifyStructureChanged();
+}
+
 } // namespace lbgui

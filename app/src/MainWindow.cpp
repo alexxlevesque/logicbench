@@ -1,13 +1,16 @@
 #include "MainWindow.h"
 
+#include "CircuitClipboard.h"
 #include "CircuitDocument.h"
 #include "BlockLibraryDialog.h"
 #include "CircuitScene.h"
+#include "ComponentItem.h"
 #include "ExamplesDialog.h"
 #include "ExportImageDialog.h"
 #include "ExpressionDialog.h"
 #include "PaletteDock.h"
 #include "PropertiesDock.h"
+#include "Theme.h"
 #include "SimplifyDialog.h"
 #include "SpecCheckDialog.h"
 #include "SubcircuitDialog.h"
@@ -15,17 +18,20 @@
 #include "WaveformDock.h"
 
 #include "logicbench/CircuitSerializer.h"
+#include "logicbench/Note.h"
 #include "logicbench/SubCircuit.h"
 
 #include <QAction>
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QGraphicsItem>
 #include <QKeySequence>
 #include <QLabel>
@@ -120,6 +126,28 @@ void MainWindow::createActions()
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_redoAction = m_document->undoStack()->createRedoAction(this, tr("&Redo"));
     m_redoAction->setShortcut(QKeySequence::Redo);
+
+    m_cutAction = new QAction(tr("Cu&t"), this);
+    m_cutAction->setShortcut(QKeySequence::Cut);
+    connect(m_cutAction, &QAction::triggered, this, &MainWindow::cutSelection);
+
+    m_copyAction = new QAction(tr("&Copy"), this);
+    m_copyAction->setShortcut(QKeySequence::Copy);
+    connect(m_copyAction, &QAction::triggered, this, &MainWindow::copySelection);
+
+    m_pasteAction = new QAction(tr("&Paste"), this);
+    m_pasteAction->setShortcut(QKeySequence::Paste);
+    m_pasteAction->setEnabled(CircuitClipboard::hasFragment());
+    connect(m_pasteAction, &QAction::triggered, this, &MainWindow::paste);
+    connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
+            [this] { m_pasteAction->setEnabled(CircuitClipboard::hasFragment()); });
+
+    m_duplicateAction = new QAction(tr("D&uplicate"), this);
+    m_duplicateAction->setShortcut(Qt::CTRL | Qt::Key_D);
+    connect(m_duplicateAction, &QAction::triggered, this, &MainWindow::duplicateSelection);
+
+    m_addNoteAction = new QAction(tr("Add &note"), this);
+    connect(m_addNoteAction, &QAction::triggered, this, &MainWindow::addNote);
 
     m_deleteAction = new QAction(tr("&Delete"), this);
     m_deleteAction->setShortcut(QKeySequence::Delete);
@@ -218,6 +246,12 @@ void MainWindow::createMenus()
     QMenu* edit = menuBar()->addMenu(tr("&Edit"));
     edit->addAction(m_undoAction);
     edit->addAction(m_redoAction);
+    edit->addSeparator();
+    edit->addAction(m_cutAction);
+    edit->addAction(m_copyAction);
+    edit->addAction(m_pasteAction);
+    edit->addAction(m_duplicateAction);
+    edit->addAction(m_addNoteAction);
     edit->addSeparator();
     edit->addAction(m_deleteAction);
     edit->addAction(m_selectAllAction);
@@ -393,6 +427,83 @@ QString MainWindow::blocksDirectory() const
     if (!m_document->filePath().isEmpty())
         return QFileInfo(m_document->filePath()).absolutePath();
     return QDir::currentPath();
+}
+
+// ------------------------------------------------------- clipboard -------
+
+void MainWindow::copySelection()
+{
+    const QList<lb::ComponentId> ids = m_scene->selectedComponentIds();
+    if (ids.isEmpty()) {
+        updateStatus(tr("Select the components to copy first."));
+        return;
+    }
+    if (CircuitClipboard::copy(m_document->circuit(), ids)) {
+        m_pasteCount = 0;
+        updateStatus(tr("Copied %n component(s).", nullptr, static_cast<int>(ids.size())));
+    }
+}
+
+void MainWindow::cutSelection()
+{
+    const QList<lb::ComponentId> ids = m_scene->selectedComponentIds();
+    if (ids.isEmpty()) {
+        updateStatus(tr("Select the components to cut first."));
+        return;
+    }
+    if (!CircuitClipboard::copy(m_document->circuit(), ids))
+        return;
+    m_pasteCount = -1;      // the first paste after a cut goes back where it was
+    m_document->deleteComponents(ids);
+    updateStatus(tr("Cut %n component(s).", nullptr, static_cast<int>(ids.size())));
+}
+
+void MainWindow::paste()
+{
+    std::unique_ptr<lb::Circuit> fragment = CircuitClipboard::paste();
+    if (!fragment) {
+        updateStatus(tr("The clipboard holds no LogicBench components."));
+        return;
+    }
+    ++m_pasteCount;
+    const qreal step = 2.0 * theme::kGrid * m_pasteCount;
+    const QList<lb::ComponentId> ids =
+        m_document->insertFragment(*fragment, QPointF(step, step), tr("paste"));
+    selectComponents(ids);
+    updateStatus(tr("Pasted %n component(s).", nullptr, static_cast<int>(ids.size())));
+}
+
+void MainWindow::duplicateSelection()
+{
+    const QList<lb::ComponentId> selected = m_scene->selectedComponentIds();
+    if (selected.isEmpty()) {
+        updateStatus(tr("Select the components to duplicate first."));
+        return;
+    }
+    // Straight through, not via the clipboard, so duplicating leaves whatever
+    // the user copied earlier where it was.
+    const std::vector<lb::ComponentId> wanted(selected.begin(), selected.end());
+    const lb::Circuit fragment = m_document->circuit().extract(wanted);
+    const qreal step = 2.0 * theme::kGrid;
+    const QList<lb::ComponentId> ids =
+        m_document->insertFragment(fragment, QPointF(step, step), tr("duplicate"));
+    selectComponents(ids);
+    updateStatus(tr("Duplicated %n component(s).", nullptr, static_cast<int>(ids.size())));
+}
+
+void MainWindow::addNote()
+{
+    placePayloadAtCentre(QStringLiteral("NOTE"));
+    updateStatus(tr("Note added — edit its text in the Properties panel."));
+}
+
+void MainWindow::selectComponents(const QList<lb::ComponentId>& ids)
+{
+    m_scene->clearSelection();
+    for (lb::ComponentId id : ids) {
+        if (ComponentItem* item = m_scene->itemFor(id))
+            item->setSelected(true);
+    }
 }
 
 // -------------------------------------------------------- simulation -------

@@ -60,4 +60,20 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
 
     add_test(NAME gui_smoke
              COMMAND logicbench_gui_tests -platform offscreen)
+
+    # Application-layer tests: GoogleTest over the document, the commands and
+    # the session services, with a QApplication alive and no window shown.
+    add_executable(logicbench_app_tests
+        app/AppTestMain.cpp
+        app/ClipboardTest.cpp
+        ${LOGICBENCH_APP_SOURCES}
+    )
+    target_include_directories(logicbench_app_tests PRIVATE ${LOGICBENCH_APP_INCLUDE_DIR})
+    target_compile_definitions(logicbench_app_tests PRIVATE
+        LOGICBENCH_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/examples")
+    target_link_libraries(logicbench_app_tests
+        PRIVATE logicbench_engine Qt6::Widgets GTest::gtest)
+    gtest_discover_tests(logicbench_app_tests
+        PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+        DISCOVERY_TIMEOUT 30)
 endif()

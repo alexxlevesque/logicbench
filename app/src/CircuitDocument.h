@@ -45,6 +45,11 @@ public:
     void disconnectWire(lb::WireId id);
     void setComponentProperty(lb::ComponentId id, const QString& name, const QString& value);
 
+    /// Adds a copy of `fragment`, moved by `offset`, as one undo step (paste,
+    /// duplicate, build from expression). Returns the new components' ids.
+    QList<lb::ComponentId> insertFragment(const lb::Circuit& fragment, QPointF offset,
+                                          const QString& description);
+
     /// Flipping a switch is deliberately not undoable: it is an input to the
     /// simulation, not an edit to the circuit, and filling the undo stack with
     /// clicks would bury the edits the user actually wants back.
@@ -69,6 +74,9 @@ public:
     void removeWire(lb::WireId id);
     void offsetComponent(lb::ComponentId id, QPointF delta);
     void applyProperty(lb::ComponentId id, const QString& name, const QString& value);
+    lb::FragmentIds insertFragmentIds(const lb::Circuit& fragment, QPointF offset,
+                                      const lb::FragmentIds& preferred);
+    void removeFragment(const lb::FragmentIds& ids);
     void notifyStructureChanged();
     void notifyGeometryChanged();
 

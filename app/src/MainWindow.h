@@ -1,5 +1,8 @@
 #pragma once
 
+#include "logicbench/Pin.h"
+
+#include <QList>
 #include <QMainWindow>
 #include <QString>
 
@@ -47,6 +50,11 @@ protected:
 private slots:
     void newCircuit();
     void open();
+    void cutSelection();
+    void copySelection();
+    void paste();
+    void duplicateSelection();
+    void addNote();
     bool save();
     bool saveAs();
     void toggleRun(bool running);
@@ -74,6 +82,7 @@ private:
     void createDocks();
     void placePayloadAtCentre(const QString& payload);
     bool confirmDiscardChanges();
+    void selectComponents(const QList<lb::ComponentId>& ids);
     QString blocksDirectory() const;
 
     CircuitDocument* m_document;
@@ -93,6 +102,11 @@ private:
     QAction* m_quitAction;
     QAction* m_undoAction;
     QAction* m_redoAction;
+    QAction* m_cutAction;
+    QAction* m_copyAction;
+    QAction* m_pasteAction;
+    QAction* m_duplicateAction;
+    QAction* m_addNoteAction;
     QAction* m_deleteAction;
     QAction* m_selectAllAction;
     QAction* m_zoomInAction;
@@ -117,6 +131,7 @@ private:
     QAction* m_quickStartAction;
 
     int m_tickIntervalMs = 40;
+    int m_pasteCount = 0;   ///< pastes since the last copy, so each lands a step further on
 };
 
 } // namespace lbgui

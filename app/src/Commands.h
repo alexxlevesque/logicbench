@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logicbench/Circuit.h"
 #include "logicbench/Component.h"
 #include "logicbench/Pin.h"
 
@@ -108,6 +109,26 @@ private:
     QString m_before;
     QString m_after;
     std::vector<lb::Wire> m_removedWires;   ///< wires lost when a gate narrowed
+};
+
+/// Paste, duplicate and build-from-expression all insert a whole fragment, and
+/// all of it is one undo step. The first redo picks the ids; later redos ask
+/// for the same ones, so a redone paste is the same paste.
+class InsertFragmentCommand : public QUndoCommand {
+public:
+    InsertFragmentCommand(CircuitDocument* document, lb::Circuit fragment, QPointF offset,
+                          const QString& text);
+
+    void undo() override;
+    void redo() override;
+
+    const lb::FragmentIds& insertedIds() const { return m_ids; }
+
+private:
+    CircuitDocument* m_document;
+    lb::Circuit m_fragment;
+    QPointF m_offset;
+    lb::FragmentIds m_ids;
 };
 
 } // namespace lbgui
