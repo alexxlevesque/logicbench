@@ -24,6 +24,8 @@ add_executable(logicbench_tests
     FragmentTest.cpp
     ExpressionParserTest.cpp
     CircuitBuilderTest.cpp
+    SopMinimizerTest.cpp
+    KarnaughMapTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.
