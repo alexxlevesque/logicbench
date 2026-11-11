@@ -2,10 +2,14 @@
 
 #include "Commands.h"
 
+#include "logicbench/CircuitBuilder.h"
 #include "logicbench/CircuitSerializer.h"
+#include "logicbench/Expression.h"
 #include "logicbench/IoComponents.h"
 
 #include <QFileInfo>
+
+#include <algorithm>
 
 namespace lbgui {
 
@@ -110,6 +114,36 @@ QList<lb::ComponentId> CircuitDocument::insertFragment(const lb::Circuit& fragme
     for (lb::ComponentId id : command->insertedIds().components)
         ids.append(id);
     return ids;
+}
+
+bool CircuitDocument::buildFromEquations(const QString& text, bool intoOpen, QString* error)
+{
+    std::unique_ptr<lb::Circuit> built;
+    try {
+        built = lb::CircuitBuilder::build(lb::ExpressionParser::parse(text.toStdString()));
+    } catch (const lb::ExpressionSyntaxError& e) {
+        if (error)
+            *error = tr("Line %1, column %2: %3")
+                         .arg(e.line()).arg(e.column()).arg(QString::fromStdString(e.message()));
+        return false;
+    }
+
+    QPointF offset;
+    if (intoOpen && m_circuit->componentCount() > 0) {
+        // Beside the existing circuit, top-aligned, so nothing lands on top
+        // of what the user already has.
+        double right = m_circuit->components().front()->x();
+        double top = m_circuit->components().front()->y();
+        for (const std::unique_ptr<lb::Component>& c : m_circuit->components()) {
+            right = std::max(right, c->x());
+            top = std::min(top, c->y());
+        }
+        offset = QPointF(right + 2.0 * lb::CircuitBuilder::kColumn, top);
+    } else if (!intoOpen) {
+        newCircuit();
+    }
+    insertFragment(*built, offset, tr("build from expression"));
+    return true;
 }
 
 void CircuitDocument::toggleSwitch(lb::ComponentId id)

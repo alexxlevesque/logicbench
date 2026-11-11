@@ -68,6 +68,7 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
     add_executable(logicbench_app_tests
         app/AppTestMain.cpp
         app/ClipboardTest.cpp
+        app/BuildFromEquationsTest.cpp
         ${LOGICBENCH_APP_SOURCES}
     )
     target_include_directories(logicbench_app_tests PRIVATE ${LOGICBENCH_APP_INCLUDE_DIR})
