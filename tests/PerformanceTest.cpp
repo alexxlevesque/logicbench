@@ -11,8 +11,13 @@
 #include "logicbench/Simulator.h"
 #include "logicbench/CircuitSerializer.h"
 #include "logicbench/TruthTable.h"
+#include "logicbench/CircuitBuilder.h"
+#include "logicbench/Expression.h"
+#include "logicbench/Simplifier.h"
+#include "logicbench/SpecChecker.h"
 
 #include <chrono>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -113,4 +118,40 @@ TEST(PerformanceTest, LargeCircuitLoadsAndSavesQuickly)
     std::cout << "[ PERF     ] save + load of " << big.circuit.componentCount()
               << " components: " << ms << " ms\n";
     EXPECT_LT(ms, 2000.0);
+}
+
+// NFR-4, added with FR-7 and FR-4: an 8-input simplify and a 10-input spec
+// check each finish in under a second.
+
+TEST(PerformanceTest, EightInputSimplifyIsUnderOneSecond)
+{
+    // An 8-input function with plenty of structure to find and no shortcut:
+    // two 4-bit comparisons combined with a parity term.
+    auto circuit = CircuitBuilder::build(ExpressionParser::parse(
+        "Y = (A & !E | !(A ^ E) & B & !F) ^ (C & G | D & !H) | (A ^ B ^ C ^ D) & (E | F)"));
+    const auto start = SteadyClock::now();
+    const SimplifyResult r = Simplifier::simplify(*circuit, TruthTableGenerator::allSwitches(*circuit),
+                                                  TruthTableGenerator::allLeds(*circuit));
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(SteadyClock::now() - start).count();
+    std::cout << "[ perf ] 8-input simplify: " << ms << " ms\n";
+    ASSERT_TRUE(r.ok()) << r.message;
+    EXPECT_LT(ms, 1000);
+}
+
+TEST(PerformanceTest, TenInputSpecCheckIsUnderOneSecond)
+{
+    auto circuit = CircuitBuilder::build(ExpressionParser::parse(
+        "Y = (A & B | C & D | E & F) ^ (G | H & I & !J)\nZ = A ^ B ^ C ^ D ^ E ^ F ^ G ^ H ^ I ^ J"));
+    const std::vector<ComponentId> inputs = TruthTableGenerator::allSwitches(*circuit);
+    const std::vector<ComponentId> outputs = TruthTableGenerator::allLeds(*circuit);
+    const Specification spec = Specification::fromCsv(
+        TruthTableGenerator::generate(*circuit, inputs, outputs).table.toCsv());
+    ASSERT_EQ(spec.rowCount(), 1024u);
+
+    const auto start = SteadyClock::now();
+    const SpecCheckResult r = SpecChecker::check(*circuit, spec);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(SteadyClock::now() - start).count();
+    std::cout << "[ perf ] 10-input spec check: " << ms << " ms\n";
+    EXPECT_TRUE(r.passed()) << r.message;
+    EXPECT_LT(ms, 1000);
 }
