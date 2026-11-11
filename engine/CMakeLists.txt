@@ -42,6 +42,8 @@ add_library(logicbench_engine STATIC
     src/services/ComponentFactory.cpp
     src/services/TruthTable.cpp
     src/services/CircuitSerializer.cpp
+    src/services/Expression.cpp
+    src/services/CircuitBuilder.cpp
 )
 
 target_include_directories(logicbench_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
