@@ -20,6 +20,7 @@ add_executable(logicbench_tests
     FlipFlopTest.cpp
     MultiplexerTest.cpp
     DecoderTest.cpp
+    DisplayTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.
