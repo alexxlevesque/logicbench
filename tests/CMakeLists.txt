@@ -17,6 +17,8 @@ add_executable(logicbench_tests
     TruthTableTest.cpp
     PerformanceTest.cpp
     ExamplesTest.cpp
+    FlipFlopTest.cpp
+    MultiplexerTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.

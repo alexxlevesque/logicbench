@@ -1,38 +1,39 @@
-#include "logicbench/DFlipFlop.h"
+#include "logicbench/FlipFlop.h"
 
 namespace lb {
 
-DFlipFlop::DFlipFlop()
+FlipFlop::FlipFlop(const std::vector<std::string>& dataInputs)
 {
     addPin("Q", PinDirection::Output);
     addPin("QBAR", PinDirection::Output);
-    addPin("D", PinDirection::Input);
+    for (const std::string& name : dataInputs)
+        addPin(name, PinDirection::Input);
     addPin("CLK", PinDirection::Input);
     setDelay(1);
 }
 
-bool DFlipFlop::evaluate()
+bool FlipFlop::evaluate()
 {
-    const Signal clock = pin(3).signal();
+    const Signal clock = pin(static_cast<std::size_t>(clockPin())).signal();
     const bool rising = (m_lastClock == Signal::Low && clock == Signal::High);
     m_lastClock = clock;
 
     if (rising)
-        m_state = pin(2).signal();          // latch D on the edge, X included
+        m_state = nextState();              // latch on the edge, X included
 
     bool changed = driveOutput(0, m_state);
     changed |= driveOutput(1, !m_state);
     return changed;
 }
 
-void DFlipFlop::reset()
+void FlipFlop::reset()
 {
-    m_state = Signal::Low;
+    m_state = m_initial;
     m_lastClock = Signal::Undefined;
     Component::reset();
 }
 
-std::vector<PropertyDescriptor> DFlipFlop::propertyDescriptors() const
+std::vector<PropertyDescriptor> FlipFlop::propertyDescriptors() const
 {
     return {
         {"label", "Label", PropertyDescriptor::Kind::Text, 0, 0},
@@ -41,19 +42,20 @@ std::vector<PropertyDescriptor> DFlipFlop::propertyDescriptors() const
     };
 }
 
-std::map<std::string, std::string> DFlipFlop::properties() const
+std::map<std::string, std::string> FlipFlop::properties() const
 {
     return {
         {"label", label()},
-        {"initial", m_state == Signal::High ? "1" : "0"},
+        {"initial", m_initial == Signal::High ? "1" : "0"},
         {"delay", std::to_string(delay())},
     };
 }
 
-bool DFlipFlop::setProperty(const std::string& name, const std::string& value)
+bool FlipFlop::setProperty(const std::string& name, const std::string& value)
 {
     if (name == "initial") {
-        m_state = (value == "1" || value == "true") ? Signal::High : Signal::Low;
+        m_initial = (value == "1" || value == "true") ? Signal::High : Signal::Low;
+        m_state = m_initial;
         return true;
     }
     return Component::setProperty(name, value);
