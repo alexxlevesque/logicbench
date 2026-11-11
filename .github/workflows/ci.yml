@@ -1,0 +1,52 @@
+# Continuous integration: every push and every pull request.
+#
+# The engine job builds without Qt and runs its tests; it is cheap and it is
+# also what proves the engine stays Qt-free. The application job installs Qt,
+# builds everything with the GUI and app tests switched on, runs the whole suite
+# headless under the offscreen platform plugin, and renders one circuit so a
+# drawing regression fails the build too. A red build blocks the merge.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  engine:
+    name: Engine and tests (no Qt)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLOGICBENCH_BUILD_APP=OFF
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+
+  app:
+    name: Application, GUI and app tests
+    runs-on: ubuntu-24.04
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt 6
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends qt6-base-dev libgl1-mesa-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DLOGICBENCH_BUILD_GUI_TESTS=ON
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -j"$(nproc)"
+      - name: Render a circuit
+        # The interface has to keep drawing, so render one and fail if it cannot.
+        run: ./build/app/logicbench -platform offscreen examples/adder4.lbc --screenshot "$RUNNER_TEMP/canvas.png"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canvas
+          path: ${{ runner.temp }}/canvas.png
