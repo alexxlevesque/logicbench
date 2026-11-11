@@ -23,6 +23,7 @@ set(LOGICBENCH_APP_SOURCES
     src/ExampleCatalog.cpp
     src/QuickStartTracker.cpp
     src/ImageExporter.cpp
+    src/KarnaughMapWidget.cpp
     src/ExpressionDialog.cpp
     src/SimplifyDialog.cpp
     src/SpecCheckDialog.cpp

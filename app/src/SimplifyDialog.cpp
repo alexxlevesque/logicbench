@@ -11,7 +11,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
-#include <QPainterPath>
 #include <QPushButton>
 #include <QVBoxLayout>
 
@@ -19,9 +18,6 @@ namespace lbgui {
 
 namespace {
 
-constexpr int kCell = 54;
-constexpr int kRowHeader = 64;
-constexpr int kColumnHeader = 30;
 
 const QColor kBrown(0x9A, 0x5B, 0x00);
 const QColor kGreen(0x3C, 0x7A, 0x50);
@@ -47,81 +43,6 @@ QLabel* hintLabel(const QString& text, QWidget* parent)
 }
 
 } // namespace
-
-// ------------------------------------------------------- KarnaughMapWidget --
-
-KarnaughMapWidget::KarnaughMapWidget(QWidget* parent)
-    : QWidget(parent)
-{
-}
-
-void KarnaughMapWidget::setMap(QString rowVariables, QString columnVariables,
-                               QStringList rowLabels, QStringList columnLabels,
-                               QVector<QVector<int>> values, QVector<Loop> loops)
-{
-    m_rowVariables = std::move(rowVariables);
-    m_columnVariables = std::move(columnVariables);
-    m_rowLabels = std::move(rowLabels);
-    m_columnLabels = std::move(columnLabels);
-    m_values = std::move(values);
-    m_loops = std::move(loops);
-    setMinimumSize(sizeHint());
-    updateGeometry();
-    update();
-}
-
-QSize KarnaughMapWidget::sizeHint() const
-{
-    return QSize(kRowHeader + kCell * static_cast<int>(m_columnLabels.size()) + 12,
-                 kColumnHeader + kCell * static_cast<int>(m_rowLabels.size()) + 12);
-}
-
-void KarnaughMapWidget::paintEvent(QPaintEvent*)
-{
-    QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
-    const QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-
-    const QPointF origin(kRowHeader, kColumnHeader);
-    painter.setPen(QColor(0x2D, 0x37, 0x48));
-    painter.drawText(QRectF(0, 0, kRowHeader, kColumnHeader), Qt::AlignCenter,
-                     m_rowVariables + QStringLiteral(" \\ ") + m_columnVariables);
-
-    painter.setFont(mono);
-    for (int c = 0; c < m_columnLabels.size(); ++c)
-        painter.drawText(QRectF(origin.x() + c * kCell, 0, kCell, kColumnHeader),
-                         Qt::AlignCenter, m_columnLabels[c]);
-    for (int r = 0; r < m_rowLabels.size(); ++r)
-        painter.drawText(QRectF(0, origin.y() + r * kCell, kRowHeader - 10, kCell),
-                         Qt::AlignRight | Qt::AlignVCenter, m_rowLabels[r]);
-
-    for (int r = 0; r < m_values.size(); ++r) {
-        for (int c = 0; c < m_values[r].size(); ++c) {
-            const QRectF cell(origin.x() + c * kCell, origin.y() + r * kCell, kCell, kCell);
-            painter.setPen(QColor(0xB8, 0xBE, 0xC6));
-            painter.setBrush(Qt::white);
-            painter.drawRect(cell);
-            painter.setPen(QColor(0x2D, 0x37, 0x48));
-            painter.drawText(cell, Qt::AlignCenter, QString::number(m_values[r][c]));
-        }
-    }
-
-    // Loops are inset by a different amount each so that overlapping terms
-    // stay distinguishable where they share a cell.
-    painter.setBrush(Qt::NoBrush);
-    for (int i = 0; i < m_loops.size(); ++i) {
-        const Loop& loop = m_loops[i];
-        const qreal inset = 5.0 + 3.0 * i;
-        const QRectF box(origin.x() + loop.column * kCell + inset,
-                         origin.y() + loop.row * kCell + inset,
-                         loop.columns * kCell - 2 * inset, loop.rows * kCell - 2 * inset);
-        QPen pen(loop.colour, 2.4);
-        if (loop.dashed)
-            pen.setStyle(Qt::DashLine);
-        painter.setPen(pen);
-        painter.drawRoundedRect(box, 10, 10);
-    }
-}
 
 // ---------------------------------------------------------- SimplifyDialog --
 

@@ -6,9 +6,12 @@
 #include "CircuitScene.h"
 #include "ComponentItem.h"
 #include "ImageExporter.h"
+#include "KarnaughMapWidget.h"
 #include "WaveformDock.h"
 
 #include "logicbench/ComponentFactory.h"
+#include "logicbench/KarnaughMap.h"
+#include "logicbench/SopMinimizer.h"
 
 #include <QDir>
 #include <QPainter>
@@ -169,4 +172,33 @@ TEST(ImageExporterTest, TheTimingDiagramExportsAtTwoTimes)
     QString error;
     ASSERT_TRUE(ImageExporter::exportWaveform(*dock.waveformWidget(), 2, path, &error));
     EXPECT_EQ(QImage(path).size(), QSize(800, 240));
+}
+
+// ------------------------------------------------------- the Karnaugh map ---
+
+TEST(KarnaughMapWidgetTest, FillsFromTheEngineWithOneColourPerTerm)
+{
+    // Majority of A, B, Cin: three terms on a 2 x 4 map.
+    const lb::SopResult r = lb::SopMinimizer::minimize(3, {3, 5, 6, 7}, {}, {"A", "B", "Cin"});
+    KarnaughMapWidget widget;
+    widget.setFromResult(lb::KarnaughMap::forInputs(3), r);
+    ASSERT_EQ(widget.values().size(), 2);
+    ASSERT_EQ(widget.values()[0].size(), 4);
+    int ones = 0;
+    for (const auto& row : widget.values())
+        for (int v : row)
+            ones += v;
+    EXPECT_EQ(ones, 4);
+    QVector<QColor> colours;
+    for (const auto& loop : widget.loops())
+        if (!colours.contains(loop.colour))
+            colours.append(loop.colour);
+    EXPECT_EQ(colours.size(), 3);
+    EXPECT_EQ(colours[0], KarnaughMapWidget::termColour(0));
+
+    widget.resize(widget.sizeHint());
+    QImage image(widget.size(), QImage::Format_ARGB32);
+    image.fill(Qt::white);
+    widget.render(&image);
+    EXPECT_GT(nonWhitePixels(image), 500);
 }

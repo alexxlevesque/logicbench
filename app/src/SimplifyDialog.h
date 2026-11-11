@@ -1,10 +1,8 @@
 #pragma once
 
-#include <QColor>
+#include "KarnaughMapWidget.h"
+
 #include <QDialog>
-#include <QStringList>
-#include <QVector>
-#include <QWidget>
 
 class QComboBox;
 class QLabel;
@@ -12,42 +10,6 @@ class QLabel;
 namespace lbgui {
 
 class CircuitDocument;
-
-/// Draws one Karnaugh map: cells in Gray-code order, and each term of the
-/// minimal expression as a loop in that term's colour.
-class KarnaughMapWidget : public QWidget {
-    Q_OBJECT
-public:
-    /// A rectangle of cells, in map coordinates, drawn as one rounded loop.
-    struct Loop {
-        int row = 0;
-        int column = 0;
-        int rows = 1;
-        int columns = 1;
-        QColor colour;
-        bool dashed = false;
-    };
-
-    explicit KarnaughMapWidget(QWidget* parent = nullptr);
-
-    /// rowVariables and columnVariables are the axis labels, e.g. "A" and
-    /// "B Cin"; values is rows x columns, already in Gray-code order.
-    void setMap(QString rowVariables, QString columnVariables,
-                QStringList rowLabels, QStringList columnLabels,
-                QVector<QVector<int>> values, QVector<Loop> loops);
-    QSize sizeHint() const override;
-
-protected:
-    void paintEvent(QPaintEvent* event) override;
-
-private:
-    QString m_rowVariables;
-    QString m_columnVariables;
-    QStringList m_rowLabels;
-    QStringList m_columnLabels;
-    QVector<QVector<int>> m_values;
-    QVector<Loop> m_loops;
-};
 
 /// Simplify (FR-7): a minimal sum of products for each output, with its
 /// Karnaugh map for 2 to 4 inputs.
