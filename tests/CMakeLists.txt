@@ -78,6 +78,7 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
         app/ExampleCatalogTest.cpp
         app/QuickStartTest.cpp
         app/ImageExporterTest.cpp
+        app/DialogsTest.cpp
         ${LOGICBENCH_APP_SOURCES}
     )
     target_include_directories(logicbench_app_tests PRIVATE ${LOGICBENCH_APP_INCLUDE_DIR})

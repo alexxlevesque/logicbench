@@ -79,6 +79,8 @@ int main(int argc, char* argv[])
     const QStringList positional = parser.positionalArguments();
     if (!restored && !positional.isEmpty())
         window.openFile(positional.first());
+    else if (!restored && !parser.isSet(screenshotOption) && !parser.isSet(showDialogOption))
+        window.showExamplesAtStartup();
 
     if (parser.isSet(showDialogOption)) {
         const QString name = parser.value(showDialogOption);
@@ -98,7 +100,7 @@ int main(int argc, char* argv[])
             } else if (name == QLatin1String("export-image")) {
                 dialog = new lbgui::ExportImageDialog(true, &window);
             } else if (name == QLatin1String("examples") || name == QLatin1String("quick-start")) {
-                auto* d = new lbgui::ExamplesDialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), &window);
+                auto* d = new lbgui::ExamplesDialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), window.quickStart(), &window);
                 if (name == QLatin1String("quick-start"))
                     d->showTab(lbgui::ExamplesDialog::QuickStartTab);
                 dialog = d;

@@ -13,10 +13,10 @@ class CircuitDocument;
 
 /// Build from expression (FR-7): one Boolean equation per output line.
 ///
-/// Shell for the SDD screen capture. The window, its layout and its live
-/// message exist; Build is not wired in yet. When it is, the text goes to
-/// lb::ExpressionParser, the equations to lb::CircuitBuilder, and the result
-/// into the document through one InsertFragmentCommand.
+/// The text is parsed on every keystroke: the message under the editor names
+/// the inputs and outputs, or the line and column of the first problem, and
+/// Build is enabled only when every line reads. Build hands the text to
+/// CircuitDocument::buildFromEquations, so the circuit arrives as one undo step.
 class ExpressionDialog : public QDialog {
     Q_OBJECT
 public:
@@ -24,6 +24,10 @@ public:
 
     void setEquations(const QString& text);
     QString equations() const;
+
+    /// The line of the first syntax error, or 0 if the text reads.
+    int errorLine() const;
+    bool canBuild() const;
 
 private slots:
     /// Re-reads the equations on every keystroke and updates the message.

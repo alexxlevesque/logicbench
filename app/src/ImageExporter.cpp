@@ -79,13 +79,11 @@ private:
 
 QRectF ImageExporter::contentBounds(CircuitScene& scene, bool selectionOnly, qreal margin)
 {
-    QRectF bounds;
-    for (QGraphicsItem* item : scene.items()) {
-        if (item->type() != ComponentItem::Type)
-            continue;
-        if (selectionOnly && !item->isSelected())
-            continue;
-        bounds = bounds.united(item->sceneBoundingRect());
+    QRectF bounds = selectionOnly ? scene.selectionBounds() : QRectF();
+    if (!selectionOnly) {
+        for (QGraphicsItem* item : scene.items())
+            if (item->type() == ComponentItem::Type)
+                bounds = bounds.united(item->sceneBoundingRect());
     }
     if (bounds.isNull())
         return QRectF();

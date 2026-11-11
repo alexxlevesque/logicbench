@@ -2,6 +2,7 @@
 
 #include "CircuitDocument.h"
 #include "CircuitScene.h"
+#include "QuickStartTracker.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -18,43 +19,6 @@ namespace lbgui {
 
 namespace {
 
-struct SampleExample {
-    const char* file;
-    const char* title;
-    const char* description;
-};
-
-// ExampleCatalog will read these from examples/catalog.json (FR-3).
-const SampleExample kExamples[] = {
-    {"half_adder.lbc", "Half adder",
-     "An XOR gate for the sum and an AND gate for the carry. Flip A and B through all four "
-     "combinations, then open the truth table."},
-    {"full_adder.lbc", "Full adder",
-     "Two half-adder blocks and an OR gate. The first example that uses blocks: it is the "
-     "circuit inside every stage of the 4-bit adder."},
-    {"adder4.lbc", "4-bit adder",
-     "Four full-adder blocks in a ripple chain, two levels of nesting. Flip A0–A3 and "
-     "B0–B3 to add two 4-bit numbers."},
-    {"counter3.lbc", "3-bit counter",
-     "A clock and three D flip-flops. Press Run (F5) and watch the bits count in the timing "
-     "diagram."},
-    {"sr_latch.lbc", "SR latch",
-     "Two cross-coupled NOR gates: memory without a clock. Set, then reset, and see that it "
-     "holds in between."},
-    {"ring_oscillator.lbc", "Ring oscillator",
-     "Three inverters in a ring. The loop can never settle, so LogicBench outlines it and "
-     "reports it instead of hanging."},
-};
-
-const char* const kQuickStartSteps[] = {
-    "Drag two switches from the palette onto the canvas, and label them A and B.",
-    "Drag an XOR gate and an AND gate onto the canvas.",
-    "Drag from each switch to an input of both gates to wire them.",
-    "Drag two LEDs onto the canvas and label them S and C.",
-    "Wire the XOR output to S and the AND output to C.",
-    "Flip A and B, then press Ctrl+T and check the truth table.",
-};
-
 /// Renders a bundled circuit the way the canvas would draw it.
 QPixmap renderPreview(const QString& path, QSize size, qreal ratio)
 {
@@ -67,6 +31,7 @@ QPixmap renderPreview(const QString& path, QSize size, qreal ratio)
     if (!document.open(path, &error))
         return pixmap;
     CircuitScene scene(&document);
+    scene.rebuild();
     const QRectF contents = scene.itemsBoundingRect().adjusted(-24, -24, 24, 24);
 
     QPainter painter(&pixmap);
@@ -78,9 +43,12 @@ QPixmap renderPreview(const QString& path, QSize size, qreal ratio)
 
 } // namespace
 
-ExamplesDialog::ExamplesDialog(const QString& examplesDirectory, QWidget* parent)
+ExamplesDialog::ExamplesDialog(const QString& examplesDirectory, QuickStartTracker* tracker,
+                               QWidget* parent)
     : QDialog(parent)
     , m_directory(examplesDirectory)
+    , m_catalog(examplesDirectory)
+    , m_tracker(tracker)
     , m_tabs(new QTabWidget(this))
     , m_list(nullptr)
     , m_preview(nullptr)
@@ -108,7 +76,8 @@ ExamplesDialog::ExamplesDialog(const QString& examplesDirectory, QWidget* parent
 
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    m_list->setCurrentRow(2);
+    if (m_list->count() > 0)
+        m_list->setCurrentRow(0);
 }
 
 QWidget* ExamplesDialog::buildExamplesTab()
@@ -119,8 +88,8 @@ QWidget* ExamplesDialog::buildExamplesTab()
     m_title = new QLabel(page);
     m_description = new QLabel(page);
 
-    for (const SampleExample& example : kExamples) {
-        auto* item = new QListWidgetItem(tr(example.title), m_list);
+    for (const ExampleEntry& example : m_catalog.entries()) {
+        auto* item = new QListWidgetItem(example.title, m_list);
         item->setSizeHint(QSize(0, 30));
     }
     m_list->setFixedWidth(170);
@@ -150,7 +119,7 @@ QWidget* ExamplesDialog::buildExamplesTab()
     connect(openButton, &QPushButton::clicked, this, [this] {
         const int row = m_list->currentRow();
         if (row >= 0)
-            emit openCopyRequested(QDir(m_directory).filePath(QString::fromUtf8(kExamples[row].file)));
+            emit openCopyRequested(m_catalog.pathFor(row));
     });
     return page;
 }
@@ -166,25 +135,75 @@ QWidget* ExamplesDialog::buildQuickStartTab()
     layout->addWidget(intro);
     layout->addSpacing(6);
 
-    // Sample progress for the capture: the first three steps done.
-    int index = 0;
-    for (const char* step : kQuickStartSteps) {
-        auto* box = new QCheckBox(tr("%1.  %2").arg(index + 1).arg(tr(step)), page);
-        box->setChecked(index < 3);
-        box->setAttribute(Qt::WA_TransparentForMouseEvents);
+    for (int i = 0; i < QuickStartTracker::kSteps; ++i) {
+        auto* box = new QCheckBox(tr("%1.  %2").arg(i + 1).arg(QuickStartTracker::stepText(i)), page);
+        box->setAttribute(Qt::WA_TransparentForMouseEvents);    // ticked by the canvas, not by hand
         box->setFocusPolicy(Qt::NoFocus);
         layout->addWidget(box);
-        ++index;
+        m_steps.append(box);
     }
     layout->addSpacing(6);
-    auto* status = new QLabel(tr("3 of 6 done. Next: drag two LEDs onto the canvas."), page);
-    status->setStyleSheet(QStringLiteral("color:#3C7A50;"));
-    layout->addWidget(status);
+    m_progress = new QLabel(page);
+    m_progress->setWordWrap(true);
+    m_progress->setStyleSheet(QStringLiteral("color:#3C7A50;"));
+    layout->addWidget(m_progress);
     layout->addStretch(1);
     auto* restart = new QPushButton(tr("Start again"), page);
     restart->setAutoDefault(false);
     layout->addWidget(restart, 0, Qt::AlignLeft);
+
+    if (m_tracker) {
+        connect(m_tracker, &QuickStartTracker::progressed, this, &ExamplesDialog::refreshSteps);
+        connect(restart, &QPushButton::clicked, this, [this] {
+            m_tracker->reset();
+            refreshSteps();
+        });
+    } else {
+        restart->setEnabled(false);
+    }
+    refreshSteps();
     return page;
+}
+
+void ExamplesDialog::refreshSteps()
+{
+    int done = 0;
+    int next = -1;
+    for (int i = 0; i < m_steps.size(); ++i) {
+        const bool ticked = m_tracker && m_tracker->isDone(i);
+        m_steps[i]->setChecked(ticked);
+        done += ticked ? 1 : 0;
+        if (!ticked && next < 0)
+            next = i;
+    }
+    if (next < 0)
+        m_progress->setText(tr("All six done: that is a working half adder. Try the full adder next."));
+    else
+        m_progress->setText(tr("%1 of %2 done. Next: %3").arg(done).arg(m_steps.size())
+                                .arg(QuickStartTracker::stepText(next)));
+}
+
+int ExamplesDialog::stepsTicked() const
+{
+    int n = 0;
+    for (const QCheckBox* box : m_steps)
+        n += box->isChecked() ? 1 : 0;
+    return n;
+}
+
+int ExamplesDialog::exampleCount() const
+{
+    return m_list->count();
+}
+
+void ExamplesDialog::setShowAtStartup(bool on)
+{
+    m_atStartup->setChecked(on);
+}
+
+void ExamplesDialog::selectExample(int row)
+{
+    m_list->setCurrentRow(row);
 }
 
 void ExamplesDialog::showTab(Tab tab)
@@ -199,13 +218,13 @@ bool ExamplesDialog::showAtStartup() const
 
 void ExamplesDialog::showExample(int row)
 {
-    if (row < 0)
+    if (row < 0 || row >= m_catalog.entries().size())
         return;
-    const SampleExample& example = kExamples[row];
-    m_title->setText(tr(example.title));
-    m_description->setText(tr(example.description));
-    m_preview->setPixmap(renderPreview(QDir(m_directory).filePath(QString::fromUtf8(example.file)),
-                                       m_preview->size() - QSize(2, 2), devicePixelRatioF()));
+    const ExampleEntry& example = m_catalog.entries()[row];
+    m_title->setText(example.title);
+    m_description->setText(example.description);
+    m_preview->setPixmap(renderPreview(m_catalog.pathFor(row), m_preview->size() - QSize(2, 2),
+                                       devicePixelRatioF()));
 }
 
 } // namespace lbgui

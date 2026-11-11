@@ -24,6 +24,7 @@ class CircuitDocument;
 class CircuitScene;
 class QuickStartTracker;
 class CircuitView;
+class ExamplesDialog;
 class PaletteDock;
 class PropertiesDock;
 class WaveformDock;
@@ -64,6 +65,13 @@ public:
     /// Returns true if it was restored.
     bool offerRecovery();
 
+    /// At launch, when nothing else was opened: the Examples window, unless
+    /// the user turned it off.
+    void showExamplesAtStartup();
+
+    /// The Examples and quick start window, created on first use.
+    ExamplesDialog* examplesDialog();
+
 protected:
     void closeEvent(QCloseEvent* event) override;
 
@@ -91,6 +99,7 @@ private slots:
     void showBlockLibrary();
     void showExamples();
     void showQuickStart();
+    void openExampleCopy(const QString& path);
     void showAbout();
     void updateWindowTitle();
     void updateStatus(const QString& message);
@@ -110,6 +119,7 @@ private:
     std::unique_ptr<lb::BlockLibrary> m_library;
     AutosaveManager* m_autosave;
     QuickStartTracker* m_quickStart;
+    ExamplesDialog* m_examples = nullptr;
     CircuitScene* m_scene;
     CircuitView* m_view;
     PaletteDock* m_palette;

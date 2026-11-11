@@ -2,6 +2,8 @@
 
 #include "CircuitDocument.h"
 
+#include "logicbench/Expression.h"
+
 #include <QButtonGroup>
 #include <QDialogButtonBox>
 #include <QFontDatabase>
@@ -10,7 +12,6 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRadioButton>
-#include <QRegularExpression>
 #include <QVBoxLayout>
 
 namespace lbgui {
@@ -93,45 +94,65 @@ QString ExpressionDialog::equations() const
 
 void ExpressionDialog::reparse()
 {
-    // Stand-in until lb::ExpressionParser exists: collect the names on each
-    // side of '=' so the message reads as it will. It checks no syntax.
-    static const QRegularExpression name(QStringLiteral("[A-Za-z][A-Za-z0-9_]*"));
-    QStringList inputs;
-    QStringList outputs;
-    for (const QString& line : m_editor->toPlainText().split(QLatin1Char('\n'))) {
-        const int equals = line.indexOf(QLatin1Char('='));
-        if (equals < 0)
-            continue;
-        const QString left = line.left(equals).trimmed();
-        if (!left.isEmpty() && !outputs.contains(left))
-            outputs << left;
-        auto it = name.globalMatch(line.mid(equals + 1));
-        while (it.hasNext()) {
-            const QString found = it.next().captured();
-            if (!inputs.contains(found))
-                inputs << found;
-        }
-    }
-
-    if (outputs.isEmpty()) {
+    const QString text = m_editor->toPlainText();
+    if (text.trimmed().isEmpty()) {
         m_status->setStyleSheet(QStringLiteral("color:#7A828C;"));
         m_status->setText(tr("Type an equation such as S = A ^ B."));
         m_buildButton->setEnabled(false);
         return;
     }
-    m_status->setStyleSheet(QStringLiteral("color:#3C7A50;"));
-    m_status->setText(tr("✓ %1 inputs (%2) · %3 outputs (%4) · ready to build")
-                          .arg(inputs.size())
-                          .arg(inputs.join(QStringLiteral(", ")))
-                          .arg(outputs.size())
-                          .arg(outputs.join(QStringLiteral(", "))));
-    m_buildButton->setEnabled(true);
+
+    try {
+        const std::vector<lb::Equation> equations = lb::ExpressionParser::parse(text.toStdString());
+        QStringList outputs;
+        std::vector<std::string> names;
+        for (const lb::Equation& eq : equations) {
+            outputs << QString::fromStdString(eq.output);
+            eq.root->collectVariables(names);
+        }
+        QStringList inputs;
+        for (const std::string& n : names)
+            if (!outputs.contains(QString::fromStdString(n)))
+                inputs << QString::fromStdString(n);
+        m_status->setStyleSheet(QStringLiteral("color:#3C7A50;"));
+        m_status->setText(tr("✓ %1 inputs (%2) · %3 outputs (%4) · ready to build")
+                              .arg(inputs.size())
+                              .arg(inputs.join(QStringLiteral(", ")))
+                              .arg(outputs.size())
+                              .arg(outputs.join(QStringLiteral(", "))));
+        m_buildButton->setEnabled(true);
+    } catch (const lb::ExpressionSyntaxError& e) {
+        m_status->setStyleSheet(QStringLiteral("color:#B3261E;"));
+        m_status->setText(tr("Line %1, column %2: %3")
+                              .arg(e.line()).arg(e.column()).arg(QString::fromStdString(e.message())));
+        m_buildButton->setEnabled(false);
+    }
+}
+
+bool ExpressionDialog::canBuild() const
+{
+    return m_buildButton->isEnabled();
+}
+
+int ExpressionDialog::errorLine() const
+{
+    try {
+        lb::ExpressionParser::parse(m_editor->toPlainText().toStdString());
+    } catch (const lb::ExpressionSyntaxError& e) {
+        return e.line();
+    }
+    return 0;
 }
 
 void ExpressionDialog::build()
 {
-    m_status->setStyleSheet(QStringLiteral("color:#9A5B00;"));
-    m_status->setText(tr("Building is not wired in yet (FR-7)."));
+    QString error;
+    if (!m_document->buildFromEquations(m_editor->toPlainText(), m_intoOpen->isChecked(), &error)) {
+        m_status->setStyleSheet(QStringLiteral("color:#B3261E;"));
+        m_status->setText(error);
+        return;
+    }
+    accept();
 }
 
 } // namespace lbgui
