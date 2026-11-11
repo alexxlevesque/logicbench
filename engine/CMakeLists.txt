@@ -35,6 +35,7 @@ add_library(logicbench_engine STATIC
     src/core/Multiplexer.cpp
     src/core/Decoder.cpp
     src/core/Displays.cpp
+    src/core/Note.cpp
     src/core/Circuit.cpp
     src/core/Simulator.cpp
     src/core/SubCircuit.cpp

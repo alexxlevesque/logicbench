@@ -99,6 +99,19 @@ void CircuitDocument::setComponentProperty(lb::ComponentId id, const QString& na
     m_undoStack.push(new SetPropertyCommand(this, id, name, previous, value));
 }
 
+QList<lb::ComponentId> CircuitDocument::insertFragment(const lb::Circuit& fragment, QPointF offset,
+                                                       const QString& description)
+{
+    if (fragment.componentCount() == 0)
+        return {};
+    auto* command = new InsertFragmentCommand(this, fragment, offset, description);
+    m_undoStack.push(command);
+    QList<lb::ComponentId> ids;
+    for (lb::ComponentId id : command->insertedIds().components)
+        ids.append(id);
+    return ids;
+}
+
 void CircuitDocument::toggleSwitch(lb::ComponentId id)
 {
     auto* toggle = dynamic_cast<lb::Switch*>(m_circuit->component(id));
@@ -237,6 +250,26 @@ void CircuitDocument::applyProperty(lb::ComponentId id, const QString& name,
     } else {
         component->setProperty(name.toStdString(), value.toStdString());
     }
+    m_simulator->refreshClocks();
+    m_simulator->scheduleAll();
+    m_simulator->settle();
+}
+
+lb::FragmentIds CircuitDocument::insertFragmentIds(const lb::Circuit& fragment, QPointF offset,
+                                                   const lb::FragmentIds& preferred)
+{
+    const lb::FragmentIds ids = m_circuit->insert(fragment, offset.x(), offset.y(), preferred);
+    m_simulator->refreshClocks();
+    for (lb::ComponentId id : ids.components)
+        m_simulator->schedule(id);
+    m_simulator->settle();
+    return ids;
+}
+
+void CircuitDocument::removeFragment(const lb::FragmentIds& ids)
+{
+    for (lb::ComponentId id : ids.components)
+        m_circuit->take(id);              // takes its wires with it
     m_simulator->refreshClocks();
     m_simulator->scheduleAll();
     m_simulator->settle();

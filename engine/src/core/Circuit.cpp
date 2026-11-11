@@ -242,6 +242,61 @@ std::vector<Wire> Circuit::setInputCount(ComponentId gateId, int inputs)
     return removed;
 }
 
+Circuit Circuit::extract(const std::vector<ComponentId>& ids) const
+{
+    Circuit fragment;
+    fragment.setName(m_name);
+    std::vector<ComponentId> kept;
+    // Canvas order, not selection order, so a fragment always lists its parts
+    // the same way whatever order they were clicked in.
+    for (const std::unique_ptr<Component>& c : m_components) {
+        if (std::find(ids.begin(), ids.end(), c->id()) == ids.end())
+            continue;
+        fragment.add(c->clone(), c->id());
+        kept.push_back(c->id());
+    }
+    const auto inside = [&kept](ComponentId id) {
+        return std::find(kept.begin(), kept.end(), id) != kept.end();
+    };
+    for (const Wire& w : m_wires) {
+        if (inside(w.from.component) && inside(w.to.component))
+            fragment.connect(w.from, w.to, w.id);
+    }
+    fragment.reset();          // a fragment carries shape, not signal levels
+    return fragment;
+}
+
+FragmentIds Circuit::insert(const Circuit& fragment, double dx, double dy,
+                            const FragmentIds& preferred)
+{
+    FragmentIds assigned;
+    std::unordered_map<ComponentId, ComponentId> remap;
+
+    std::size_t index = 0;
+    for (const std::unique_ptr<Component>& c : fragment.components()) {
+        std::unique_ptr<Component> copy = c->clone();
+        copy->setPosition(c->x() + dx, c->y() + dy);
+        const ComponentId want = index < preferred.components.size()
+                                     ? preferred.components[index] : kNoComponent;
+        // A fresh id, never the original's: the original may still be on the
+        // canvas, and add() would reuse its id only if it were free anyway.
+        const ComponentId id = add(std::move(copy), want != kNoComponent ? want : m_nextComponentId);
+        remap[c->id()] = id;
+        assigned.components.push_back(id);
+        ++index;
+    }
+
+    index = 0;
+    for (const Wire& w : fragment.wires()) {
+        const WireId want = index < preferred.wires.size() ? preferred.wires[index] : kNoWire;
+        const PinRef from{remap.at(w.from.component), w.from.pin};
+        const PinRef to{remap.at(w.to.component), w.to.pin};
+        assigned.wires.push_back(connect(from, to, want));
+        ++index;
+    }
+    return assigned;
+}
+
 void Circuit::reset()
 {
     for (const std::unique_ptr<Component>& c : m_components)

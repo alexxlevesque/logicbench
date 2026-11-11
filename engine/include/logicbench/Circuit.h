@@ -11,6 +11,16 @@
 
 namespace lb {
 
+/// The ids given to the parts of an inserted fragment, in the fragment's own
+/// order. Undo removes exactly these; redo passes them back as the preferred
+/// ids, so a pasted circuit comes back under the same ids after undo and redo.
+struct FragmentIds {
+    std::vector<ComponentId> components;
+    std::vector<WireId> wires;
+
+    bool empty() const noexcept { return components.empty(); }
+};
+
 /// Owns every component on one canvas and every wire between them.
 ///
 /// Ownership is through unique_ptr and nothing else holds an owning pointer,
@@ -82,6 +92,19 @@ public:
     /// disappears. Returns the wires that were removed so a command can
     /// restore them on undo.
     std::vector<Wire> setInputCount(ComponentId gate, int inputs);
+
+    /// A new circuit holding copies of these components and of every wire with
+    /// both ends among them; wires to anything outside are dropped. Ids and
+    /// positions are kept, so the fragment can be inserted somewhere else.
+    /// Unknown ids are ignored.
+    Circuit extract(const std::vector<ComponentId>& ids) const;
+
+    /// Adds a copy of every component and wire of `fragment`, moved by (dx, dy).
+    /// Each part gets a fresh id unless `preferred` names a free one for it (by
+    /// position in the fragment), which is how redo restores a paste exactly.
+    /// Returns the ids assigned, in the fragment's order.
+    FragmentIds insert(const Circuit& fragment, double dx = 0.0, double dy = 0.0,
+                       const FragmentIds& preferred = {});
 
     /// Clears all stored state and drives every pin Undefined.
     void reset();

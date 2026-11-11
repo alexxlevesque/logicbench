@@ -17,6 +17,7 @@ set(LOGICBENCH_APP_SOURCES
     src/WaveformDock.cpp
     src/TruthTableDialog.cpp
     src/SubcircuitDialog.cpp
+    src/CircuitClipboard.cpp
     src/ExpressionDialog.cpp
     src/SimplifyDialog.cpp
     src/SpecCheckDialog.cpp
