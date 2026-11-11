@@ -46,6 +46,7 @@ add_library(logicbench_engine STATIC
     src/services/CircuitBuilder.cpp
     src/services/SopMinimizer.cpp
     src/services/KarnaughMap.cpp
+    src/services/Simplifier.cpp
 )
 
 target_include_directories(logicbench_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
