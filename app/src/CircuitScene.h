@@ -41,6 +41,9 @@ public:
     void componentItemMoved(ComponentItem* item);
 
     QList<lb::ComponentId> selectedComponentIds() const;
+    /// The scene rectangle around the selected components, or a null rect if
+    /// nothing is selected. Export image uses it for a selection-only export.
+    QRectF selectionBounds() const;
     void deleteSelection();
 
     /// The MIME type the palette uses when a component is dragged onto the

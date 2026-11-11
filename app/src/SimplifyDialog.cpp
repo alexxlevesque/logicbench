@@ -2,6 +2,10 @@
 
 #include "CircuitDocument.h"
 
+#include "logicbench/KarnaughMap.h"
+#include "logicbench/Simplifier.h"
+#include "logicbench/TruthTable.h"
+
 #include <QApplication>
 #include <QClipboard>
 #include <QComboBox>
@@ -19,10 +23,6 @@ namespace lbgui {
 namespace {
 
 
-const QColor kBrown(0x9A, 0x5B, 0x00);
-const QColor kGreen(0x3C, 0x7A, 0x50);
-const QColor kBlue(0x2F, 0x6F, 0xB3);
-const QColor kPurple(0x7B, 0x61, 0xFF);
 
 QString term(const QString& text, const QColor& colour)
 {
@@ -32,6 +32,20 @@ QString term(const QString& text, const QColor& colour)
 QString overbar(const QString& name)
 {
     return QStringLiteral("<span style=\"text-decoration:overline\">%1</span>").arg(name);
+}
+
+/// One product term as rich text, complemented variables with an overbar.
+QString termHtml(const lb::SopResult& r, const lb::Implicant& t)
+{
+    QStringList parts;
+    for (int v = 0; v < r.variables; ++v) {
+        const std::uint32_t bit = 1u << (r.variables - 1 - v);
+        if (t.mask & bit)
+            continue;
+        const QString name = QString::fromStdString(r.names[static_cast<std::size_t>(v)]).toHtmlEscaped();
+        parts << ((t.value & bit) ? name : overbar(name));
+    }
+    return parts.isEmpty() ? QStringLiteral("1") : parts.join(QLatin1Char(' '));
 }
 
 QLabel* hintLabel(const QString& text, QWidget* parent)
@@ -57,17 +71,28 @@ SimplifyDialog::SimplifyDialog(CircuitDocument* document, QWidget* parent)
     setWindowTitle(tr("Simplify — %1").arg(m_document->displayName()));
     resize(700, 410);
 
-    m_output->addItems({QStringLiteral("Cout"), QStringLiteral("S")});
+    // Every switch and LED, as the truth table opens with. The circuit is
+    // borrowed for the table and handed back as it was.
+    lb::Circuit& circuit = m_document->circuit();
+    m_result = lb::Simplifier::simplify(circuit, lb::TruthTableGenerator::allSwitches(circuit),
+                                        lb::TruthTableGenerator::allLeds(circuit));
+
+    for (const std::string& name : m_result.outputNames)
+        m_output->addItem(QString::fromStdString(name));
     m_output->setMinimumWidth(110);
+    QStringList inputs;
+    for (const std::string& name : m_result.inputNames)
+        inputs << QString::fromStdString(name);
 
     auto* top = new QHBoxLayout;
     top->addWidget(new QLabel(tr("Output"), this));
     top->addWidget(m_output);
     top->addSpacing(16);
-    top->addWidget(new QLabel(tr("Inputs: A, B, Cin"), this));
+    top->addWidget(new QLabel(inputs.isEmpty() ? QString() : tr("Inputs: %1").arg(inputs.join(QStringLiteral(", "))), this));
     top->addStretch(1);
 
     auto* mapBox = new QGroupBox(tr("Karnaugh map"), this);
+    m_mapBox = mapBox;
     auto* mapLayout = new QVBoxLayout(mapBox);
     mapLayout->addWidget(m_map, 0, Qt::AlignLeft);
     mapLayout->addWidget(hintLabel(tr("Columns in Gray-code order. Shown for 2–4 inputs; "
@@ -112,57 +137,76 @@ SimplifyDialog::SimplifyDialog(CircuitDocument* document, QWidget* parent)
     connect(m_output, qOverload<int>(&QComboBox::currentIndexChanged), this,
             &SimplifyDialog::showOutput);
     connect(copyButton, &QPushButton::clicked, this, &SimplifyDialog::copyExpression);
-    connect(buildButton, &QPushButton::clicked, this,
-            [this] { emit buildRequested(m_plainExpression); });
+    connect(buildButton, &QPushButton::clicked, this, [this] { emit buildRequested(allEquations()); });
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
+    if (!m_result.ok()) {
+        // Nothing to show but the reason.
+        m_output->setEnabled(false);
+        copyButton->setEnabled(false);
+        buildButton->setEnabled(false);
+        mapBox->hide();
+        m_expression->setText(QStringLiteral("<span style=\"color:#B3261E\">%1</span>")
+                                  .arg(tr("Cannot simplify")));
+        m_details->setText(QString::fromStdString(m_result.message).toHtmlEscaped());
+        return;
+    }
     showOutput(0);
+}
+
+QString SimplifyDialog::allEquations() const
+{
+    QStringList lines;
+    for (std::size_t i = 0; i < m_result.outputs.size(); ++i)
+        lines << QString::fromStdString(m_result.outputNames[i] + " = " + m_result.outputs[i].expression());
+    return lines.join(QLatin1Char('\n'));
+}
+
+QString SimplifyDialog::expressionText() const
+{
+    return m_plainExpression;
 }
 
 void SimplifyDialog::showOutput(int index)
 {
-    // Sample data: a full adder, A B Cin -> Cout S. lb::Simplifier replaces
-    // this once FR-7 lands.
-    const QStringList rows{QStringLiteral("0"), QStringLiteral("1")};
-    const QStringList columns{QStringLiteral("00"), QStringLiteral("01"), QStringLiteral("11"),
-                              QStringLiteral("10")};
-
-    if (index == 0) {
-        m_map->setMap(QStringLiteral("A"), QStringLiteral("B Cin"), rows, columns,
-                      {{0, 0, 1, 0}, {0, 1, 1, 1}},
-                      {{0, 2, 2, 1, kBlue, false},
-                       {1, 1, 1, 2, kGreen, false},
-                       {1, 2, 1, 2, kBrown, true}});
-        m_expression->setText(QStringLiteral("Cout = ") + term(QStringLiteral("A B"), kBrown)
-                              + QStringLiteral(" + ") + term(QStringLiteral("A Cin"), kGreen)
-                              + QStringLiteral(" + ") + term(QStringLiteral("B Cin"), kBlue));
-        m_details->setText(tr("Canonical form: Σm(3, 5, 6, 7)<br><br>"
-                              "Literals: 6 (canonical form: 12)<br><br>"
-                              "Gates: 3 two-input AND, 1 three-input OR"));
-        m_plainExpression = QStringLiteral("Cout = (A & B) | (A & Cin) | (B & Cin)");
+    if (index < 0 || index >= static_cast<int>(m_result.outputs.size()))
         return;
+    const lb::SopResult& r = m_result.outputs[static_cast<std::size_t>(index)];
+    const QString name = QString::fromStdString(m_result.outputNames[static_cast<std::size_t>(index)]);
+
+    // The map only for 2 to 4 inputs; past that it stops being readable, but
+    // the expression is still exact.
+    if (r.variables >= 2 && r.variables <= 4) {
+        m_map->setFromResult(lb::KarnaughMap::forInputs(r.variables), r);
+        m_mapBox->show();
+    } else {
+        m_mapBox->hide();
     }
 
-    m_map->setMap(QStringLiteral("A"), QStringLiteral("B Cin"), rows, columns,
-                  {{0, 1, 0, 1}, {1, 0, 1, 0}},
-                  {{0, 1, 1, 1, kBlue, false},
-                   {0, 3, 1, 1, kGreen, false},
-                   {1, 0, 1, 1, kBrown, true},
-                   {1, 2, 1, 1, kPurple, false}});
-    const QString a = QStringLiteral("A");
-    const QString b = QStringLiteral("B");
-    const QString cin = QStringLiteral("Cin");
-    m_expression->setText(
-        QStringLiteral("S = ") + term(overbar(a) + QStringLiteral(" ") + overbar(b) + QStringLiteral(" Cin"), kBlue)
-        + QStringLiteral(" + ") + term(overbar(a) + QStringLiteral(" B ") + overbar(cin), kGreen)
-        + QStringLiteral(" + ") + term(QStringLiteral("A ") + overbar(b) + QStringLiteral(" ") + overbar(cin), kBrown)
-        + QStringLiteral(" + ") + term(QStringLiteral("A B Cin"), kPurple));
-    m_details->setText(tr("Canonical form: Σm(1, 2, 4, 7)<br><br>"
-                          "Literals: 12 (canonical form: 12): no two 1s are adjacent, "
-                          "so nothing combines.<br><br>"
-                          "Gates: 4 three-input AND, 1 four-input OR, 3 NOT"));
-    m_plainExpression =
-        QStringLiteral("S = (!A & !B & Cin) | (!A & B & !Cin) | (A & !B & !Cin) | (A & B & Cin)");
+    QString html = name.toHtmlEscaped() + QStringLiteral(" = ");
+    if (r.isConstantZero()) {
+        html += QStringLiteral("0");
+    } else {
+        QStringList terms;
+        for (std::size_t t = 0; t < r.terms.size(); ++t)
+            terms << term(termHtml(r, r.terms[t]), KarnaughMapWidget::termColour(static_cast<int>(t)));
+        html += terms.join(QStringLiteral(" + "));
+    }
+    m_expression->setText(html);
+
+    QStringList minterms;
+    for (std::uint32_t m : r.minterms)
+        minterms << QString::number(m);
+    const int canonical = static_cast<int>(r.minterms.size()) * r.variables;
+    QString details = tr("Canonical form: Σm(%1)<br><br>Literals: %2 (canonical form: %3)")
+                          .arg(minterms.isEmpty() ? QStringLiteral("–") : minterms.join(QStringLiteral(", ")))
+                          .arg(r.literalCount()).arg(canonical);
+    details += tr("<br><br>Terms: %1").arg(r.terms.size());
+    if (!r.exact)
+        details += tr("<br><br>This is the best cover found within the search budget; a smaller "
+                      "one may exist.");
+    m_details->setText(details);
+    m_plainExpression = name + QStringLiteral(" = ") + QString::fromStdString(r.expression());
 }
 
 void SimplifyDialog::copyExpression()

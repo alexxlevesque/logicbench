@@ -2,6 +2,8 @@
 
 #include "CircuitDocument.h"
 
+#include "logicbench/SpecChecker.h"
+
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -13,6 +15,8 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace lbgui {
 
@@ -79,7 +83,11 @@ SpecCheckDialog::SpecCheckDialog(CircuitDocument* document, QWidget* parent)
     connect(recheckButton, &QPushButton::clicked, this, &SpecCheckDialog::recheck);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
-    setSpecPath(QStringLiteral("lab3_comparator_spec.csv"));
+    connect(m_onlyDiffering, &QCheckBox::toggled, this, &SpecCheckDialog::recheck);
+    connect(m_path, &QLineEdit::returnPressed, this, &SpecCheckDialog::recheck);
+
+    m_verdict->hide();
+    m_matched->setText(tr("Choose the spec file (Browse…) to compare this circuit with it."));
 }
 
 void SpecCheckDialog::setSpecPath(const QString& path)
@@ -96,39 +104,124 @@ void SpecCheckDialog::browse()
         setSpecPath(path);
 }
 
-void SpecCheckDialog::recheck()
+int SpecCheckDialog::rowCount() const
 {
-    // Not wired to lb::SpecChecker yet (FR-4); always shows the scenario.
-    showSampleResult();
+    return m_rows->rowCount();
 }
 
-void SpecCheckDialog::showSampleResult()
+void SpecCheckDialog::showVerdict(bool passed, const QString& text)
 {
-    m_matched->setText(tr("Matched by column name. Inputs: A1 A0 B1 B0 · Outputs: GT EQ LT"));
-    m_verdict->setText(tr("✕  2 of 16 rows differ, all on output GT"));
+    m_verdict->setStyleSheet(passed
+        ? QStringLiteral("QLabel { color:#3C7A50; font-weight:600; background:#EEF6F0;"
+                         " border:1px solid #3C7A50; padding:8px 10px; }")
+        : QStringLiteral("QLabel { color:#B3261E; font-weight:600; background:#FBEDEC;"
+                         " border:1px solid #B3261E; padding:8px 10px; }"));
+    m_verdict->setText(text);
+    m_verdict->show();
+}
 
-    const QStringList headers{tr("A1"), tr("A0"), tr("B1"), tr("B0"), tr("Output"),
-                              tr("Specification"), tr("Your circuit")};
-    const QList<QStringList> rows{
-        {QStringLiteral("0"), QStringLiteral("1"), QStringLiteral("0"), QStringLiteral("0"),
-         QStringLiteral("GT"), QStringLiteral("1"), QStringLiteral("0")},
-        {QStringLiteral("1"), QStringLiteral("1"), QStringLiteral("1"), QStringLiteral("0"),
-         QStringLiteral("GT"), QStringLiteral("1"), QStringLiteral("0")},
-    };
-
+void SpecCheckDialog::recheck()
+{
     m_rows->clear();
+    m_rows->setRowCount(0);
+    m_rows->setColumnCount(0);
+    const QString path = m_path->text().trimmed();
+    if (path.isEmpty())
+        return;
+
+    lb::Specification spec;
+    try {
+        spec = lb::Specification::load(path.toStdString());
+    } catch (const lb::SpecFormatError& e) {
+        // The file is the problem, not the circuit: say which line.
+        m_matched->setText(QString());
+        showVerdict(false, e.line() > 0 ? tr("✕  The spec cannot be read: line %1, %2")
+                                              .arg(e.line()).arg(QString::fromStdString(e.message()))
+                                        : tr("✕  %1").arg(QString::fromStdString(e.message())));
+        return;
+    }
+
+    // The spec is never modified, and the circuit is left as it was found.
+    const lb::SpecCheckResult result = lb::SpecChecker::check(m_document->circuit(), spec);
+    m_lastResult = result;
+    const auto join = [](const std::vector<std::string>& names) {
+        QStringList list;
+        for (const std::string& n : names)
+            list << QString::fromStdString(n);
+        return list.join(QLatin1Char(' '));
+    };
+    m_matched->setText(result.inputColumns.empty() && result.outputColumns.empty()
+                           ? QString()
+                           : tr("Matched by column name. Inputs: %1 · Outputs: %2")
+                                 .arg(join(result.inputColumns), join(result.outputColumns)));
+
+    switch (result.status) {
+    case lb::SpecCheckStatus::Pass:
+        showVerdict(true, tr("✓  All %1 rows match the spec").arg(result.rowsCompared));
+        break;
+    case lb::SpecCheckStatus::Fail: {
+        QStringList outputs;
+        for (const lb::Mismatch& m : result.mismatches)
+            if (!outputs.contains(QString::fromStdString(m.output)))
+                outputs << QString::fromStdString(m.output);
+        showVerdict(false, tr("✕  %1 of %2 rows differ, on output %3")
+                               .arg(result.rowsDiffering).arg(result.rowsCompared)
+                               .arg(outputs.join(QStringLiteral(", "))));
+        break;
+    }
+    default:
+        showVerdict(false, QStringLiteral("✕  ") + QString::fromStdString(result.message));
+        return;
+    }
+    fillRows(result, spec);
+}
+
+void SpecCheckDialog::fillRows(const lb::SpecCheckResult& result, const lb::Specification& spec)
+{
+    QStringList headers;
+    for (const std::string& name : result.inputColumns)
+        headers << QString::fromStdString(name);
+    headers << tr("Output") << tr("Specification") << tr("Your circuit");
+
+    // Every row of the spec, or only the differing ones; a differing output
+    // gets its own row so each mismatch is one line to read.
+    struct Line { QStringList cells; bool differs; };
+    QVector<Line> lines;
+    std::size_t next = 0;
+    for (std::size_t r = 0; r < spec.rowCount(); ++r) {
+        QStringList inputs;
+        for (const std::string& name : result.inputColumns) {
+            const auto& cols = spec.columns();
+            const auto col = static_cast<std::size_t>(std::find(cols.begin(), cols.end(), name) - cols.begin());
+            inputs << QString(QChar(lb::toChar(spec.rows()[r][col])));
+        }
+        bool any = false;
+        while (next < result.mismatches.size() && result.mismatches[next].specRow == r) {
+            const lb::Mismatch& m = result.mismatches[next++];
+            lines.append({inputs + QStringList{QString::fromStdString(m.output),
+                                               QString(QChar(lb::toChar(m.expected))),
+                                               QString(QChar(lb::toChar(m.actual)))},
+                          true});
+            any = true;
+        }
+        if (!any && !m_onlyDiffering->isChecked())
+            lines.append({inputs + QStringList{tr("all"), tr("match"), tr("match")}, false});
+    }
+
     m_rows->setColumnCount(static_cast<int>(headers.size()));
     m_rows->setHorizontalHeaderLabels(headers);
-    m_rows->setRowCount(static_cast<int>(rows.size()));
+    m_rows->setRowCount(static_cast<int>(lines.size()));
     const QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    for (int r = 0; r < rows.size(); ++r) {
+    const int inputCount = static_cast<int>(result.inputColumns.size());
+    for (int r = 0; r < lines.size(); ++r) {
         for (int c = 0; c < headers.size(); ++c) {
-            auto* cell = new QTableWidgetItem(rows[r][c]);
+            auto* cell = new QTableWidgetItem(lines[r].cells[c]);
             cell->setTextAlignment(Qt::AlignCenter);
-            cell->setBackground(QColor(0xFB, 0xF1, 0xF0));
-            if (c != 4)
+            if (lines[r].differs)
+                cell->setBackground(QColor(0xFB, 0xF1, 0xF0));
+            if (c != inputCount)
                 cell->setFont(mono);
-            if (c == static_cast<int>(headers.size()) - 1) {
+            if (lines[r].differs && c == static_cast<int>(headers.size()) - 1) {
                 QFont bold = mono;
                 bold.setBold(true);
                 cell->setFont(bold);
@@ -138,7 +231,7 @@ void SpecCheckDialog::showSampleResult()
         }
     }
     m_rows->resizeColumnsToContents();
-    for (int c = 0; c < 4; ++c)
+    for (int c = 0; c < inputCount; ++c)
         m_rows->setColumnWidth(c, 52);
 }
 

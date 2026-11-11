@@ -675,7 +675,7 @@ void MainWindow::showPreferences()
 
 void MainWindow::showExportImage()
 {
-    ExportImageDialog dialog(!m_scene->selectedComponentIds().isEmpty(), this);
+    ExportImageDialog dialog(!m_scene->selectionBounds().isNull(), this);
     if (dialog.exec() != QDialog::Accepted)
         return;
 
@@ -739,17 +739,60 @@ void MainWindow::showBlockLibrary()
     dialog.exec();
 }
 
+ExamplesDialog* MainWindow::examplesDialog()
+{
+    if (!m_examples) {
+        // Not modal: the Quick start tab ticks while the user works beside it.
+        m_examples = new ExamplesDialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), m_quickStart, this);
+        m_examples->setShowAtStartup(m_settings->showExamplesAtStartup());
+        connect(m_examples, &ExamplesDialog::openCopyRequested, this, &MainWindow::openExampleCopy);
+        connect(m_examples, &QDialog::finished, this,
+                [this] { m_settings->setShowExamplesAtStartup(m_examples->showAtStartup()); });
+    }
+    return m_examples;
+}
+
 void MainWindow::showExamples()
 {
-    ExamplesDialog dialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), this);
-    dialog.exec();
+    ExamplesDialog* dialog = examplesDialog();
+    dialog->showTab(ExamplesDialog::ExamplesTab);
+    dialog->show();
+    dialog->raise();
+    dialog->activateWindow();
 }
 
 void MainWindow::showQuickStart()
 {
-    ExamplesDialog dialog(QStringLiteral(LOGICBENCH_EXAMPLES_DIR), this);
-    dialog.showTab(ExamplesDialog::QuickStartTab);
-    dialog.exec();
+    ExamplesDialog* dialog = examplesDialog();
+    dialog->showTab(ExamplesDialog::QuickStartTab);
+    dialog->show();
+    dialog->raise();
+}
+
+void MainWindow::showExamplesAtStartup()
+{
+    if (m_settings->showExamplesAtStartup())
+        showExamples();
+}
+
+void MainWindow::openExampleCopy(const QString& path)
+{
+    if (!confirmDiscardChanges())
+        return;
+    QString error;
+    if (!m_document->openCopy(path, &error)) {
+        QMessageBox::warning(this, tr("Cannot open example"), tr("%1\n\n%2").arg(path, error));
+        return;
+    }
+    m_runAction->setChecked(false);
+    m_waveforms->clear();
+    m_waveforms->refreshSignalList();
+    m_view->frameCircuit();
+    updateWindowTitle();
+    updateStatus(tr("Opened a copy of %1. Save it under a name of your own to keep it.")
+                     .arg(QFileInfo(path).fileName()));
+    if (m_examples)
+        m_examples->hide();
 }
 
 void MainWindow::showAbout()

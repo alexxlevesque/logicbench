@@ -124,6 +124,16 @@ QList<lb::ComponentId> CircuitScene::selectedComponentIds() const
     return ids;
 }
 
+QRectF CircuitScene::selectionBounds() const
+{
+    QRectF bounds;
+    for (QGraphicsItem* item : selectedItems()) {
+        if (item->type() == ComponentItem::Type)
+            bounds = bounds.united(item->sceneBoundingRect());
+    }
+    return bounds;
+}
+
 void CircuitScene::deleteSelection()
 {
     const QList<lb::ComponentId> components = selectedComponentIds();
