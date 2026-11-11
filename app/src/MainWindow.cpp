@@ -10,6 +10,7 @@
 #include "ExamplesDialog.h"
 #include "ExportImageDialog.h"
 #include "ExpressionDialog.h"
+#include "ImageExporter.h"
 #include "PaletteDock.h"
 #include "PropertiesDock.h"
 #include "QuickStartTracker.h"
@@ -674,8 +675,38 @@ void MainWindow::showPreferences()
 
 void MainWindow::showExportImage()
 {
-    ExportImageDialog dialog(!m_scene->selectedItems().isEmpty(), this);
-    dialog.exec();
+    ExportImageDialog dialog(!m_scene->selectedComponentIds().isEmpty(), this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const bool svg = dialog.format() == ExportImageDialog::Format::Svg;
+    const QString suffix = svg ? QStringLiteral("svg") : QStringLiteral("png");
+    const QString base = QFileInfo(m_document->displayName()).completeBaseName();
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Export image"), QDir(blocksDirectory()).filePath(base + QLatin1Char('.') + suffix),
+        svg ? tr("SVG images (*.svg)") : tr("PNG images (*.png)"));
+    if (path.isEmpty())
+        return;
+
+    QString error;
+    bool ok = false;
+    if (dialog.target() == ExportImageDialog::Target::TimingDiagram) {
+        ok = ImageExporter::exportWaveform(*m_waveforms->waveformWidget(), dialog.scale(), path, &error);
+    } else {
+        ExportOptions options;
+        options.format = svg ? ExportOptions::Format::Svg : ExportOptions::Format::Png;
+        options.scale = dialog.scale();
+        options.selectionOnly = dialog.target() == ExportImageDialog::Target::Selection;
+        options.transparent = dialog.transparentBackground();
+        options.signalColours = dialog.showSignals();
+        options.labels = dialog.includeLabels();
+        ok = ImageExporter::exportScene(*m_scene, options, path, &error);
+    }
+    if (!ok) {
+        QMessageBox::warning(this, tr("Cannot export"), error);
+        return;
+    }
+    updateStatus(tr("Exported %1").arg(path));
 }
 
 void MainWindow::showSimplify()

@@ -44,7 +44,7 @@ gtest_discover_tests(logicbench_tests)
 # Qt and the application's own sources. Off by default: the engine suite is
 # what runs on every commit, and this one needs a Qt build.
 if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Test)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Svg Test)
 
     # qt_standard_project_setup() ran in app/, and its effect is scoped to that
     # directory, so moc has to be switched on again here.
@@ -63,7 +63,7 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
     # than offscreen. Bundling it makes it an ordinary app.
     set_target_properties(logicbench_gui_tests PROPERTIES MACOSX_BUNDLE TRUE)
     target_link_libraries(logicbench_gui_tests
-        PRIVATE logicbench_engine Qt6::Widgets Qt6::Test)
+        PRIVATE logicbench_engine Qt6::Widgets Qt6::Svg Qt6::Test)
 
     add_test(NAME gui_smoke
              COMMAND logicbench_gui_tests -platform offscreen)
@@ -77,13 +77,14 @@ if(LOGICBENCH_BUILD_GUI_TESTS AND LOGICBENCH_BUILD_APP)
         app/AutosaveTest.cpp
         app/ExampleCatalogTest.cpp
         app/QuickStartTest.cpp
+        app/ImageExporterTest.cpp
         ${LOGICBENCH_APP_SOURCES}
     )
     target_include_directories(logicbench_app_tests PRIVATE ${LOGICBENCH_APP_INCLUDE_DIR})
     target_compile_definitions(logicbench_app_tests PRIVATE
         LOGICBENCH_EXAMPLES_DIR="${CMAKE_SOURCE_DIR}/examples")
     target_link_libraries(logicbench_app_tests
-        PRIVATE logicbench_engine Qt6::Widgets Qt6::Test GTest::gtest)
+        PRIVATE logicbench_engine Qt6::Widgets Qt6::Svg Qt6::Test GTest::gtest)
     gtest_discover_tests(logicbench_app_tests
         PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
         DISCOVERY_TIMEOUT 30)

@@ -72,8 +72,8 @@ void WireItem::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget
         painter->drawPath(path());
     }
 
-    QPen pen(theme::signalColor(signal), 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
-    if (signal == lb::Signal::Undefined)
+    QPen pen(m_scene->signalColour(signal), 2.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    if (signal == lb::Signal::Undefined && m_scene->renderStyle().signalColours)
         pen.setStyle(Qt::DashLine);     // an undefined wire should not look driven
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
@@ -84,7 +84,7 @@ void WireItem::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget
     const std::vector<lb::PinRef>& sinks = m_scene->document()->circuit().sinksOf(wire->from);
     if (sinks.size() > 1) {
         if (ComponentItem* source = m_scene->itemFor(wire->from.component)) {
-            painter->setBrush(theme::signalColor(signal));
+            painter->setBrush(m_scene->signalColour(signal));
             painter->setPen(Qt::NoPen);
             painter->drawEllipse(source->mapToScene(source->pinPosition(wire->from.pin)), 3.2, 3.2);
         }

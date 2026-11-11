@@ -254,7 +254,7 @@ void ComponentItem::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QW
 
     // The user's label sits under the body.
     const QString label = QString::fromStdString(c->label());
-    if (!label.isEmpty()) {
+    if (!label.isEmpty() && m_scene->renderStyle().labels) {
         QFont font = painter->font();
         font.setPointSizeF(8.5);
         font.setBold(true);
@@ -347,7 +347,7 @@ void ComponentItem::paintSwitch(QPainter* painter)
 
     const qreal knob = track.height();
     const qreal x = (state == lb::Signal::High) ? track.right() - knob : track.left();
-    painter->setBrush(theme::signalColor(state));
+    painter->setBrush(m_scene->signalColour(state));
     painter->drawEllipse(QRectF(x, track.top(), knob, knob));
 
     painter->setPen(theme::labelColor());
@@ -355,8 +355,9 @@ void ComponentItem::paintSwitch(QPainter* painter)
     font.setPointSizeF(10.0);
     font.setBold(true);
     painter->setFont(font);
-    painter->drawText(QRectF(m_body.right() - 20, m_body.top(), 16, m_body.height()),
-                      Qt::AlignCenter, QString(QChar(lb::toChar(state))));
+    if (m_scene->renderStyle().signalColours)
+        painter->drawText(QRectF(m_body.right() - 20, m_body.top(), 16, m_body.height()),
+                          Qt::AlignCenter, QString(QChar(lb::toChar(state))));
 }
 
 void ComponentItem::paintLed(QPainter* painter)
@@ -364,7 +365,7 @@ void ComponentItem::paintLed(QPainter* painter)
     const lb::Signal value = component()->pin(0).signal();
     const QRectF circle(m_body.center().x() - 13, m_body.center().y() - 13, 26, 26);
 
-    if (value == lb::Signal::High) {
+    if (value == lb::Signal::High && m_scene->renderStyle().signalColours) {
         // A soft halo so a lit lamp reads at a glance across the canvas.
         QRadialGradient glow(circle.center(), 22);
         glow.setColorAt(0.0, QColor(0x22, 0xA6, 0x55, 150));
@@ -375,7 +376,7 @@ void ComponentItem::paintLed(QPainter* painter)
     }
 
     painter->setPen(QPen(theme::outlineColor(), 1.6));
-    painter->setBrush(theme::signalColor(value));
+    painter->setBrush(m_scene->signalColour(value));
     painter->drawEllipse(circle);
 
     painter->setPen(QColor(0xFF, 0xFF, 0xFF));
@@ -383,7 +384,8 @@ void ComponentItem::paintLed(QPainter* painter)
     font.setPointSizeF(9.0);
     font.setBold(true);
     painter->setFont(font);
-    painter->drawText(circle, Qt::AlignCenter, QString(QChar(lb::toChar(value))));
+    if (m_scene->renderStyle().signalColours)
+        painter->drawText(circle, Qt::AlignCenter, QString(QChar(lb::toChar(value))));
 }
 
 void ComponentItem::paintClock(QPainter* painter)
@@ -407,7 +409,7 @@ void ComponentItem::paintClock(QPainter* painter)
     wave.lineTo(inner.right(), inner.bottom());
 
     painter->setBrush(Qt::NoBrush);
-    painter->setPen(QPen(theme::signalColor(component()->pin(0).signal()), 1.8));
+    painter->setPen(QPen(m_scene->signalColour(component()->pin(0).signal()), 1.8));
     painter->drawPath(wave);
 }
 
@@ -640,11 +642,11 @@ void ComponentItem::paintPins(QPainter* painter)
         const bool isInput = c->pin(p).isInput();
         const QPointF anchor(isInput ? m_body.left() : m_body.right(), pin.y());
 
-        painter->setPen(QPen(theme::signalColor(c->pin(p).signal()), 1.8));
+        painter->setPen(QPen(m_scene->signalColour(c->pin(p).signal()), 1.8));
         painter->drawLine(anchor, pin);
 
         const bool hovered = (static_cast<int>(p) == m_hoverPin);
-        painter->setBrush(hovered ? theme::selectionColor() : theme::signalColor(c->pin(p).signal()));
+        painter->setBrush(hovered ? theme::selectionColor() : m_scene->signalColour(c->pin(p).signal()));
         painter->setPen(Qt::NoPen);
         painter->drawEllipse(pin, hovered ? 4.0 : 2.6, hovered ? 4.0 : 2.6);
     }
