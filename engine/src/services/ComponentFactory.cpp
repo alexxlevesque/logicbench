@@ -1,6 +1,6 @@
 #include "logicbench/ComponentFactory.h"
 
-#include "logicbench/DFlipFlop.h"
+#include "logicbench/FlipFlop.h"
 #include "logicbench/Gates.h"
 #include "logicbench/IoComponents.h"
 #include "logicbench/SubCircuit.h"
@@ -88,6 +88,11 @@ const ComponentFactory& ComponentFactory::standard()
                        [] { return std::make_unique<Clock>(); });
         f.registerType({"DFF", "D flip-flop", "Sequential", "Latches D on the rising clock edge"},
                        [] { return std::make_unique<DFlipFlop>(); });
+        f.registerType({"JKFF", "JK flip-flop", "Sequential",
+                        "J sets, K resets, both toggle, on the rising clock edge"},
+                       [] { return std::make_unique<JKFlipFlop>(); });
+        f.registerType({"TFF", "T flip-flop", "Sequential", "Toggles on the rising clock edge while T is high"},
+                       [] { return std::make_unique<TFlipFlop>(); });
         f.registerType({"SUBCIRCUIT", "Subcircuit", "Blocks", "A saved circuit used as one block"},
                        [] { return std::make_unique<SubCircuit>(); });
         return f;

@@ -43,7 +43,7 @@ public:
 
     std::vector<std::string> categories() const;
 
-    /// The built-in library: gates, switch, LED, clock, D flip-flop and the
+    /// The built-in library: gates, switch, LED, clock, flip-flops, multiplexers and the
     /// empty subcircuit placeholder used when loading a file.
     static const ComponentFactory& standard();
 
