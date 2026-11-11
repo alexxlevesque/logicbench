@@ -21,6 +21,7 @@ add_executable(logicbench_tests
     MultiplexerTest.cpp
     DecoderTest.cpp
     DisplayTest.cpp
+    FragmentTest.cpp
 )
 
 # The examples live in the repository, so the test reads them from there.

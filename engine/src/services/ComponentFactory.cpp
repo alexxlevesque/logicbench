@@ -6,6 +6,7 @@
 #include "logicbench/Gates.h"
 #include "logicbench/IoComponents.h"
 #include "logicbench/Multiplexer.h"
+#include "logicbench/Note.h"
 #include "logicbench/SubCircuit.h"
 
 #include <algorithm>
@@ -113,6 +114,8 @@ const ComponentFactory& ComponentFactory::standard()
         f.registerType({"SEG7", "Seven-segment display", "Displays",
                         "Segments a to g, each lit by its own input"},
                        [] { return std::make_unique<SevenSegmentDisplay>(); });
+        f.registerType({"NOTE", "Note", "Annotations", "Text on the canvas; takes no part in the simulation"},
+                       [] { return std::make_unique<Note>(); });
         f.registerType({"SUBCIRCUIT", "Subcircuit", "Blocks", "A saved circuit used as one block"},
                        [] { return std::make_unique<SubCircuit>(); });
         return f;
